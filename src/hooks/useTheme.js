@@ -1,22 +1,29 @@
-import { useState, useEffect } from 'react'
-import { settingsDB } from '../lib/db'
+import { useState } from 'react'
+
+const STORAGE_KEY = 'setto-theme'
+
+function readStoredTheme() {
+  if (typeof window === 'undefined') return 'light'
+  return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+}
+
+function applyTheme(value) {
+  const isDark = value === 'dark'
+  document.documentElement.classList.toggle('dark', isDark)
+}
 
 export function useTheme() {
-  const [theme, setThemeState] = useState('light')
+  const [theme, setThemeState] = useState(() => {
+    const value = readStoredTheme()
+    applyTheme(value)
+    return value
+  })
 
-  useEffect(() => {
-    settingsDB.get('theme').then(saved => {
-      const value = saved === 'dark' ? 'dark' : 'light'
-      setThemeState(value)
-      document.documentElement.classList.toggle('dark', value === 'dark')
-    })
-  }, [])
-
-  async function setTheme(value) {
+  function setTheme(value) {
     const next = value === 'dark' ? 'dark' : 'light'
-    await settingsDB.set('theme', next)
+    localStorage.setItem(STORAGE_KEY, next)
+    applyTheme(next)
     setThemeState(next)
-    document.documentElement.classList.toggle('dark', next === 'dark')
   }
 
   function toggleTheme() {

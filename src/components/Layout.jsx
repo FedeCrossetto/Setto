@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import Chatbot from './Chatbot'
+import ActiveSessionBanner from './ActiveSessionBanner'
 
 export default function Layout() {
   return (
@@ -10,6 +11,8 @@ export default function Layout() {
       </main>
       <BottomNav />
       <Chatbot />
+      {/* Fixed overlay — renders on top of everything */}
+      <ActiveSessionBanner />
     </div>
   )
 }

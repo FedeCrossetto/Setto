@@ -117,7 +117,7 @@ export default function Nutrition() {
         </div>
       </Header>
 
-      <div className="px-5 space-y-4 pb-6">
+      <div className="px-5 pt-5 space-y-4 pb-6">
         {/* Calories Overview */}
         <Card>
           <div className="flex items-center justify-between mb-1">

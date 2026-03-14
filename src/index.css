@@ -1,14 +1,47 @@
 @import "tailwindcss";
 
+/* ========== Fuentes (no cambian con el tema) ========== */
 @theme {
-  --color-primary: #69f59a;
-  --color-primary-light: #c4fce0;
-  --color-primary-dark: #35d46e;
-  --color-bg: #f4f5f7;
-  --color-surface: #050608;
-  --color-text: #111827;
-  --color-text-secondary: #6b7280;
   --font-family-sans: 'Inter', system-ui, sans-serif;
+}
+
+/* ========== Colores dinámicos (cambian con light/dark) ========== */
+@theme inline {
+  --color-primary: var(--c-primary);
+  --color-primary-light: var(--c-primary-light);
+  --color-primary-dark: var(--c-primary-dark);
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-text: var(--c-text);
+  --color-text-secondary: var(--c-text-secondary);
+  --color-card: var(--c-card);
+  --color-border: var(--c-border);
+  --color-track: var(--c-track);
+}
+
+/* ========== TEMA CLARO (por defecto) ========== */
+:root {
+  --c-primary: #69f59a;
+  --c-primary-light: #c4fce0;
+  --c-primary-dark: #35d46e;
+  --c-bg: #f4f5f7;
+  --c-surface: #050608;
+  --c-text: #111827;
+  --c-text-secondary: #6b7280;
+  --c-card: #ffffff;
+  --c-border: rgba(0, 0, 0, 0.06);
+  --c-track: #e5e7eb;
+}
+
+/* ========== TEMA OSCURO ========== */
+html.dark {
+  --c-bg: #0f172a;
+  --c-surface: #1e293b;
+  --c-text: #f1f5f9;
+  --c-text-secondary: #94a3b8;
+  --c-card: #1e293b;
+  --c-border: rgba(255, 255, 255, 0.08);
+  --c-track: #334155;
 }
 
 * {

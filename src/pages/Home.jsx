@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
+import ThemeToggle from '../components/ThemeToggle'
+import { useAuth } from '../contexts/AuthContext'
 import Card from '../components/ui/Card'
 import ProgressBar from '../components/ui/ProgressBar'
 import StatCard from '../components/ui/StatCard'
@@ -10,6 +12,7 @@ import { exportAllData } from '../lib/export'
 
 export default function Home() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [stats, setStats] = useState({ calories: 0, protein: 0, workouts: 0, weight: null })
   const today = todayStr()
 
@@ -42,22 +45,18 @@ export default function Home() {
     load()
   }, [today])
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
-
   return (
     <div className="min-h-full">
-      <Header title="">
-        <div />
+      <Header
+        variant="home"
+        greetingLabel="Bienvenido"
+        greetingName={`Hola, ${user?.nombre || user?.username || ''}`}
+        avatar={user?.avatar || null}
+      >
+        <ThemeToggle />
       </Header>
 
-      <div className="px-5 space-y-5 pb-6">
-        {/* Greeting */}
-        <div>
-          <p className="text-sm text-text-secondary font-medium">{greeting} 👋</p>
-          <h2 className="text-2xl font-bold mt-0.5">Hola, Setto</h2>
-        </div>
-
+      <div className="px-5 pt-5 space-y-5 pb-6">
         {/* Daily Calories - card principal oscura */}
         <Card className="bg-surface text-white border-0 shadow-lg">
           <div className="flex items-center gap-2 mb-3">

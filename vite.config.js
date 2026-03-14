@@ -13,7 +13,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png', 'icons/*.svg', 'favicon.png', 'favicon.svg'],
+      includeAssets: ['icons/*.png', 'icons/*.svg', 'favicon.png', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Setto',
         short_name: 'Setto',

@@ -55,31 +55,39 @@ function parseDate(val) {
     return val.toISOString().split('T')[0]
   }
   const str = String(val).trim()
-  // Try ISO format (2024-01-15)
+  // ISO format: 2024-01-15
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10)
-  // Try DD/MM/YYYY or DD-MM-YYYY
+  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
   const dmy = str.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)
   if (dmy) {
     const year = dmy[3].length === 2 ? '20' + dmy[3] : dmy[3]
-    return `${year}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`
+    const month = dmy[2].padStart(2, '0')
+    const day   = dmy[1].padStart(2, '0')
+    const candidate = `${year}-${month}-${day}`
+    if (isValidISODate(candidate)) return candidate
   }
-  // Try MM/DD/YYYY
+  // MM/DD/YYYY
   const mdy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
   if (mdy) {
     const m = parseInt(mdy[1]), d = parseInt(mdy[2])
     if (m > 12 && d <= 12) {
-      return `${mdy[3]}-${mdy[2].padStart(2, '0')}-${mdy[1].padStart(2, '0')}`
+      const candidate = `${mdy[3]}-${mdy[2].padStart(2, '0')}-${mdy[1].padStart(2, '0')}`
+      if (isValidISODate(candidate)) return candidate
     }
   }
-  // Try Excel serial number
+  // Excel serial number (5-digit integer)
   if (/^\d{5}$/.test(str)) {
-    const serial = parseInt(str)
-    const utcDays = Math.floor(serial - 25569)
+    const utcDays = Math.floor(parseInt(str) - 25569)
     const d = new Date(utcDays * 86400 * 1000)
     if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]
   }
-  // Use as-is if it's a string like "Enero", "Semana 1", etc.
-  return str
+  // Not a recognizable date → null
+  return null
+}
+
+function isValidISODate(str) {
+  const d = new Date(str + 'T12:00:00')
+  return !isNaN(d.getTime()) && str.length === 10
 }
 
 function findHeaderRow(json) {
@@ -175,36 +183,42 @@ export function parseExcelFile(file) {
           const row = json[i]
           if (!row || row.every(c => c == null || String(c).trim() === '')) continue
 
-          let dateValue
+          // Intentar obtener fecha válida (formato YYYY-MM-DD obligatorio para Supabase)
+          let dateValue = null
           if (hasDateCol) {
             dateValue = parseDate(row[columnMap.fecha])
           }
           if (!dateValue) {
-            const firstCell = row[0]
-            if (firstCell != null && String(firstCell).trim() !== '') {
-              dateValue = parseDate(firstCell)
-            }
+            dateValue = parseDate(row[0])
           }
-          if (!dateValue) {
-            dateValue = `row-${i + 1}`
+          // Si no hay fecha válida, intentar con la segunda celda
+          if (!dateValue && row[1] != null) {
+            dateValue = parseDate(row[1])
+          }
+
+          // Sin fecha válida en formato ISO → saltar la fila (evita error de tipo en Supabase)
+          if (!dateValue || !isValidISODate(dateValue)) {
+            console.log(`[ExcelParser] Fila ${i + 1} sin fecha válida, saltando:`, row[0])
+            continue
           }
 
           const measurement = {
-            date: dateValue,
-            peso: columnMap.peso !== -1 ? toNumber(row[columnMap.peso]) : null,
-            grasa: columnMap.grasa !== -1 ? toNumber(row[columnMap.grasa]) : null,
-            pecho: columnMap.pecho !== -1 ? toNumber(row[columnMap.pecho]) : null,
+            date:    dateValue,
+            peso:    columnMap.peso    !== -1 ? toNumber(row[columnMap.peso])    : null,
+            grasa:   columnMap.grasa   !== -1 ? toNumber(row[columnMap.grasa])   : null,
+            pecho:   columnMap.pecho   !== -1 ? toNumber(row[columnMap.pecho])   : null,
             cintura: columnMap.cintura !== -1 ? toNumber(row[columnMap.cintura]) : null,
-            cadera: columnMap.cadera !== -1 ? toNumber(row[columnMap.cadera]) : null,
-            brazo: columnMap.brazo !== -1 ? toNumber(row[columnMap.brazo]) : null,
-            pierna: columnMap.pierna !== -1 ? toNumber(row[columnMap.pierna]) : null,
+            cadera:  columnMap.cadera  !== -1 ? toNumber(row[columnMap.cadera])  : null,
+            brazo:   columnMap.brazo   !== -1 ? toNumber(row[columnMap.brazo])   : null,
+            pierna:  columnMap.pierna  !== -1 ? toNumber(row[columnMap.pierna])  : null,
           }
 
-          const hasData = [measurement.peso, measurement.grasa, measurement.pecho, measurement.cintura, measurement.cadera, measurement.brazo, measurement.pierna].some(v => v != null)
+          const hasData = [
+            measurement.peso, measurement.grasa, measurement.pecho,
+            measurement.cintura, measurement.cadera, measurement.brazo, measurement.pierna,
+          ].some(v => v != null)
 
-          if (hasData) {
-            measurements.push(measurement)
-          }
+          if (hasData) measurements.push(measurement)
         }
 
         console.log('[ExcelParser] Parsed', measurements.length, 'measurements')

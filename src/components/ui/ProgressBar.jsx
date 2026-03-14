@@ -8,7 +8,7 @@ export default function ProgressBar({ value, max, color = 'bg-primary', label, s
           {showValue && <span className="text-text-secondary">{value} / {max}</span>}
         </div>
       )}
-      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-2.5 bg-track rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>

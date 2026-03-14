@@ -1,17 +1,18 @@
 import { NavLink } from 'react-router-dom'
 
 const tabs = [
-  { to: '/', icon: 'home', label: 'Inicio' },
-  { to: '/workout', icon: 'fitness_center', label: 'Entreno' },
-  { to: '/anthropometry', icon: 'monitoring', label: 'Antropo' },
-  { to: '/nutrition', icon: 'restaurant', label: 'Nutrición' },
-  { to: '/progress', icon: 'photo_camera', label: 'Progreso' },
+  { to: '/',              icon: 'home',          label: 'Inicio'    },
+  { to: '/workout',       icon: 'fitness_center', label: 'Entreno'   },
+  { to: '/anthropometry', icon: 'monitoring',    label: 'Antropo'   },
+  { to: '/nutrition',     icon: 'restaurant',    label: 'Nutrición' },
+  { to: '/progress',      icon: 'photo_camera',  label: 'Progreso'  },
+  { to: '/profile',       icon: 'person',        label: 'Perfil'    },
 ]
 
 export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-4 safe-bottom z-50 flex justify-center">
-      <div className="flex items-center justify-between h-12 rounded-full bg-surface text-white shadow-xl px-3 min-w-[220px] max-w-xs gap-3">
+      <div className="flex items-center justify-between h-12 rounded-full bg-surface text-white shadow-xl px-2 min-w-[280px] max-w-sm gap-1">
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}
@@ -19,7 +20,7 @@ export default function BottomNav() {
             end={tab.to === '/'}
             className={({ isActive }) =>
               `group relative flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-                isActive ? 'bg-primary text-black shadow-md' : 'text-gray-400'
+                isActive ? 'bg-primary text-black shadow-md' : 'text-text-secondary'
               }`
             }
             aria-label={tab.label}

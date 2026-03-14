@@ -28,19 +28,75 @@
   "routineTemplates": [
     {
       "name": "Pecho y Tríceps",
+      "category": "Push",
+      "description": "Enfoque en empuje: pecho + tríceps",
       "exercises": ["bench-press", "incline-bench", "chest-fly", "cable-crossover", "tricep-pushdown", "skull-crusher", "overhead-tricep"]
     },
     {
       "name": "Espalda y Bíceps",
+      "category": "Pull",
+      "description": "Enfoque en tirón: espalda + bíceps",
       "exercises": ["deadlift", "barbell-row", "lat-pulldown", "seated-row", "barbell-curl", "hammer-curl", "preacher-curl"]
     },
     {
-      "name": "Piernas",
+      "name": "Piernas Completo",
+      "category": "Piernas",
+      "description": "Cuádriceps, isquiotibiales y gemelos",
       "exercises": ["squat", "leg-press", "leg-extension", "leg-curl", "calf-raise"]
     },
     {
       "name": "Hombros y Core",
+      "category": "Hombros",
+      "description": "Deltoides + abdominales",
       "exercises": ["shoulder-press", "lateral-raise", "face-pull", "plank", "crunch"]
+    },
+    {
+      "name": "Push (PPL)",
+      "category": "PPL",
+      "description": "Pecho, hombros y tríceps",
+      "exercises": ["bench-press", "incline-bench", "shoulder-press", "lateral-raise", "tricep-pushdown", "overhead-tricep"]
+    },
+    {
+      "name": "Pull (PPL)",
+      "category": "PPL",
+      "description": "Espalda y bíceps",
+      "exercises": ["deadlift", "barbell-row", "lat-pulldown", "seated-row", "barbell-curl", "hammer-curl"]
+    },
+    {
+      "name": "Legs (PPL)",
+      "category": "PPL",
+      "description": "Piernas completo + core",
+      "exercises": ["squat", "leg-press", "leg-extension", "leg-curl", "calf-raise", "plank"]
+    },
+    {
+      "name": "Full Body A",
+      "category": "Full Body",
+      "description": "Compuestos principales de todo el cuerpo",
+      "exercises": ["bench-press", "barbell-row", "squat", "shoulder-press", "barbell-curl", "tricep-pushdown"]
+    },
+    {
+      "name": "Full Body B",
+      "category": "Full Body",
+      "description": "Variantes complementarias full body",
+      "exercises": ["incline-bench", "lat-pulldown", "leg-press", "lateral-raise", "hammer-curl", "skull-crusher"]
+    },
+    {
+      "name": "Upper Body",
+      "category": "Upper/Lower",
+      "description": "Tren superior completo",
+      "exercises": ["bench-press", "barbell-row", "shoulder-press", "barbell-curl", "tricep-pushdown", "lateral-raise"]
+    },
+    {
+      "name": "Lower Body",
+      "category": "Upper/Lower",
+      "description": "Tren inferior completo",
+      "exercises": ["squat", "deadlift", "leg-press", "leg-curl", "leg-extension", "calf-raise"]
+    },
+    {
+      "name": "Brazos",
+      "category": "Aislamiento",
+      "description": "Bíceps + Tríceps intenso",
+      "exercises": ["barbell-curl", "hammer-curl", "preacher-curl", "tricep-pushdown", "skull-crusher", "overhead-tricep"]
     }
   ]
 }

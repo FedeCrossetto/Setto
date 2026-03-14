@@ -250,7 +250,7 @@ export default function Anthropometry() {
         </div>
       </Header>
 
-      <div className="flex-1 overflow-y-auto pb-24 px-4">
+      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-5">
         {importPreview && (
           <div className={`rounded-2xl p-4 flex items-start gap-3 ${
             importPreview.success ? 'bg-green-50 border border-green-200' : importPreview.error ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'

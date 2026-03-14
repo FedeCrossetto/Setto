@@ -116,7 +116,7 @@ export default function Progress() {
         </div>
       </Header>
 
-      <div className="px-5 space-y-4 pb-6">
+      <div className="px-5 pt-5 space-y-4 pb-6">
         {/* Streak */}
         <Card className="bg-primary text-white border-0">
           <div className="flex items-center gap-3">

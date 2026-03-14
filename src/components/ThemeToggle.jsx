@@ -1,19 +1,20 @@
 import { useTheme } from '../hooks/useTheme'
 
 export default function ThemeToggle() {
-  const [theme, toggleTheme] = useTheme()
+  const [theme, , toggleTheme] = useTheme()
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-text-secondary hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+      className="w-10 h-10 flex items-center justify-center rounded-full text-primary shrink-0 hover:opacity-80 active:scale-95 transition-all"
       title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+      aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
     >
-      {theme === 'dark' ? (
-        <span className="material-symbols-outlined text-lg">light_mode</span>
+      {theme === 'light' ? (
+        <span className="material-symbols-outlined text-xl">light_mode</span>
       ) : (
-        <span className="material-symbols-outlined text-lg">dark_mode</span>
+        <span className="material-symbols-outlined text-xl">dark_mode</span>
       )}
     </button>
   )
