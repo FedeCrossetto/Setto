@@ -1,0 +1,46 @@
+{
+  "exercises": [
+    { "id": "bench-press", "name": "Press de Banca", "muscle": "Pecho", "icon": "fitness_center" },
+    { "id": "incline-bench", "name": "Press Inclinado", "muscle": "Pecho", "icon": "fitness_center" },
+    { "id": "chest-fly", "name": "Aperturas", "muscle": "Pecho", "icon": "fitness_center" },
+    { "id": "cable-crossover", "name": "Cruces en Polea", "muscle": "Pecho", "icon": "fitness_center" },
+    { "id": "tricep-pushdown", "name": "Pushdown Tríceps", "muscle": "Tríceps", "icon": "fitness_center" },
+    { "id": "skull-crusher", "name": "Rompecráneos", "muscle": "Tríceps", "icon": "fitness_center" },
+    { "id": "overhead-tricep", "name": "Extensión Overhead", "muscle": "Tríceps", "icon": "fitness_center" },
+    { "id": "deadlift", "name": "Peso Muerto", "muscle": "Espalda", "icon": "fitness_center" },
+    { "id": "barbell-row", "name": "Remo con Barra", "muscle": "Espalda", "icon": "fitness_center" },
+    { "id": "lat-pulldown", "name": "Jalón al Pecho", "muscle": "Espalda", "icon": "fitness_center" },
+    { "id": "seated-row", "name": "Remo Sentado", "muscle": "Espalda", "icon": "fitness_center" },
+    { "id": "barbell-curl", "name": "Curl con Barra", "muscle": "Bíceps", "icon": "fitness_center" },
+    { "id": "hammer-curl", "name": "Curl Martillo", "muscle": "Bíceps", "icon": "fitness_center" },
+    { "id": "preacher-curl", "name": "Curl Predicador", "muscle": "Bíceps", "icon": "fitness_center" },
+    { "id": "squat", "name": "Sentadilla", "muscle": "Piernas", "icon": "fitness_center" },
+    { "id": "leg-press", "name": "Prensa de Piernas", "muscle": "Piernas", "icon": "fitness_center" },
+    { "id": "leg-extension", "name": "Extensión de Piernas", "muscle": "Piernas", "icon": "fitness_center" },
+    { "id": "leg-curl", "name": "Curl de Piernas", "muscle": "Piernas", "icon": "fitness_center" },
+    { "id": "calf-raise", "name": "Elevación de Gemelos", "muscle": "Piernas", "icon": "fitness_center" },
+    { "id": "shoulder-press", "name": "Press Militar", "muscle": "Hombros", "icon": "fitness_center" },
+    { "id": "lateral-raise", "name": "Elevaciones Laterales", "muscle": "Hombros", "icon": "fitness_center" },
+    { "id": "face-pull", "name": "Face Pull", "muscle": "Hombros", "icon": "fitness_center" },
+    { "id": "plank", "name": "Plancha", "muscle": "Core", "icon": "fitness_center" },
+    { "id": "crunch", "name": "Crunch Abdominal", "muscle": "Core", "icon": "fitness_center" }
+  ],
+  "routineTemplates": [
+    {
+      "name": "Pecho y Tríceps",
+      "exercises": ["bench-press", "incline-bench", "chest-fly", "cable-crossover", "tricep-pushdown", "skull-crusher", "overhead-tricep"]
+    },
+    {
+      "name": "Espalda y Bíceps",
+      "exercises": ["deadlift", "barbell-row", "lat-pulldown", "seated-row", "barbell-curl", "hammer-curl", "preacher-curl"]
+    },
+    {
+      "name": "Piernas",
+      "exercises": ["squat", "leg-press", "leg-extension", "leg-curl", "calf-raise"]
+    },
+    {
+      "name": "Hombros y Core",
+      "exercises": ["shoulder-press", "lateral-raise", "face-pull", "plank", "crunch"]
+    }
+  ]
+}

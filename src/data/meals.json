@@ -1,0 +1,110 @@
+{
+  "mealTemplates": [
+    {
+      "id": "avena-banana",
+      "name": "Avena con Banana",
+      "type": "desayuno",
+      "calories": 350,
+      "protein": 12,
+      "carbs": 60,
+      "fat": 8,
+      "description": "Avena instantánea + banana + miel"
+    },
+    {
+      "id": "tostadas-huevo",
+      "name": "Tostadas con Huevo",
+      "type": "desayuno",
+      "calories": 320,
+      "protein": 18,
+      "carbs": 35,
+      "fat": 12,
+      "description": "2 tostadas integrales + 2 huevos revueltos"
+    },
+    {
+      "id": "pollo-arroz",
+      "name": "Pollo con Arroz",
+      "type": "almuerzo",
+      "calories": 520,
+      "protein": 40,
+      "carbs": 55,
+      "fat": 12,
+      "description": "Pechuga de pollo grillada + arroz integral + ensalada"
+    },
+    {
+      "id": "milanesa-pure",
+      "name": "Milanesa con Puré",
+      "type": "almuerzo",
+      "calories": 580,
+      "protein": 35,
+      "carbs": 50,
+      "fat": 22,
+      "description": "Milanesa de pollo al horno + puré de papa"
+    },
+    {
+      "id": "pasta-atun",
+      "name": "Pasta con Atún",
+      "type": "almuerzo",
+      "calories": 480,
+      "protein": 32,
+      "carbs": 58,
+      "fat": 10,
+      "description": "Fideos + atún en lata + tomate"
+    },
+    {
+      "id": "ensalada-pollo",
+      "name": "Ensalada de Pollo",
+      "type": "cena",
+      "calories": 380,
+      "protein": 35,
+      "carbs": 20,
+      "fat": 18,
+      "description": "Mix de hojas + pollo desmenuzado + tomate + queso"
+    },
+    {
+      "id": "tortilla-verduras",
+      "name": "Tortilla de Verduras",
+      "type": "cena",
+      "calories": 340,
+      "protein": 22,
+      "carbs": 15,
+      "fat": 20,
+      "description": "3 huevos + zapallito + cebolla + queso"
+    },
+    {
+      "id": "yogur-granola",
+      "name": "Yogur con Granola",
+      "type": "snack",
+      "calories": 220,
+      "protein": 10,
+      "carbs": 30,
+      "fat": 6,
+      "description": "Yogur natural + granola + frutas"
+    },
+    {
+      "id": "banana-mantequilla",
+      "name": "Banana con Mantequilla de Maní",
+      "type": "snack",
+      "calories": 280,
+      "protein": 8,
+      "carbs": 30,
+      "fat": 16,
+      "description": "Banana + 2 cdas mantequilla de maní"
+    },
+    {
+      "id": "batido-proteina",
+      "name": "Batido Proteico",
+      "type": "snack",
+      "calories": 250,
+      "protein": 30,
+      "carbs": 20,
+      "fat": 5,
+      "description": "Leche + proteína en polvo + banana"
+    }
+  ],
+  "dailyGoal": {
+    "calories": 2200,
+    "protein": 150,
+    "carbs": 250,
+    "fat": 70
+  }
+}
