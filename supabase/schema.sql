@@ -155,7 +155,6 @@ CREATE TABLE IF NOT EXISTS comidas (
 CREATE INDEX IF NOT EXISTS idx_comidas_usuario ON comidas(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_comidas_fecha   ON comidas(fecha);
 
--- ──────────────────────────────────────────────────────────
 --  9. FOTOS DE PROGRESO
 -- ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS fotos_progreso (
@@ -185,7 +184,200 @@ ALTER TABLE comidas         DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fotos_progreso  DISABLE ROW LEVEL SECURITY;
 
 -- ──────────────────────────────────────────────────────────
---  MIGRACIONES (ejecutar si las tablas ya existen)
+--  10. NUTRICIÓN — ALIMENTOS Y COMIDAS DETALLADAS
+-- ──────────────────────────────────────────────────────────
+
+-- 10.1 TABLA DE ALIMENTOS BASE
+
+CREATE TABLE IF NOT EXISTS alimentos (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  nombre_display    TEXT        NOT NULL,
+  nombre_canonico   TEXT        NOT NULL,
+
+  marca             TEXT,
+  codigo_barras     TEXT,
+
+  categoria         TEXT,
+  subcategoria      TEXT,
+
+  tipo_alimento     TEXT        NOT NULL DEFAULT 'generico',  -- generico | marca | receta
+  estado_preparacion TEXT       NOT NULL DEFAULT 'crudo',     -- crudo | cocido | listo
+
+  unidad_base       TEXT        NOT NULL DEFAULT 'g',
+  cantidad_base     NUMERIC(7,2)   NOT NULL DEFAULT 100,
+
+  calorias          NUMERIC(7,1),
+  proteina_g        NUMERIC(6,2),
+  carbohidratos_g   NUMERIC(6,2),
+  grasa_g           NUMERIC(6,2),
+
+  fibra_g           NUMERIC(6,2),
+  azucar_g          NUMERIC(6,2),
+  sodio_mg          NUMERIC(8,1),
+
+  pais              TEXT        NOT NULL DEFAULT 'AR',
+  fuente_datos      TEXT,
+
+  fuente_externa    TEXT,      -- ej: 'openfoodfacts', 'usda'
+  fuente_externa_id TEXT,      -- id/código en la fuente externa
+
+  verificado        BOOLEAN    NOT NULL DEFAULT FALSE,
+
+  creado_en         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actualizado_en    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT alimentos_cantidad_base_pos CHECK (cantidad_base > 0),
+  CONSTRAINT alimentos_unidad_base_valida CHECK (unidad_base IN ('g','ml','unidad'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_alimentos_nombre_display ON alimentos(nombre_display);
+CREATE INDEX IF NOT EXISTS idx_alimentos_barcode        ON alimentos(codigo_barras);
+
+
+-- 10.2 PORCIONES
+
+CREATE TABLE IF NOT EXISTS alimentos_porciones (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  alimento_id        UUID NOT NULL REFERENCES alimentos(id) ON DELETE CASCADE,
+
+  nombre_porcion     TEXT,
+  unidad             TEXT,
+
+  cantidad           NUMERIC(10,3),
+  gramos_equivalente NUMERIC(10,3),
+
+  es_porcion_default BOOLEAN NOT NULL DEFAULT FALSE,
+
+  creado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT alimentos_porciones_cantidad_pos CHECK (cantidad IS NULL OR cantidad > 0),
+  CONSTRAINT alimentos_porciones_gramos_pos   CHECK (gramos_equivalente IS NULL OR gramos_equivalente > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alimentos_porciones_alimento ON alimentos_porciones(alimento_id);
+
+
+-- 10.3 ALIAS / SINONIMOS
+
+CREATE TABLE IF NOT EXISTS alimentos_alias (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  alimento_id      UUID NOT NULL REFERENCES alimentos(id) ON DELETE CASCADE,
+
+  alias            TEXT NOT NULL,
+  alias_normalizado TEXT,
+
+  creado_en        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT alimentos_alias_unicos UNIQUE (alimento_id, alias_normalizado)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alimentos_alias_alimento ON alimentos_alias(alimento_id);
+
+
+-- 10.4 TABLA DE COMIDAS DEL USUARIO (MIGRACIÓN)
+
+-- Renombrar columnas SOLO si existen con los nombres viejos
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM   information_schema.columns
+    WHERE  table_name = 'comidas' AND column_name = 'nombre'
+  ) THEN
+    ALTER TABLE comidas RENAME COLUMN nombre TO nombre_comida;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM   information_schema.columns
+    WHERE  table_name = 'comidas' AND column_name = 'calorias'
+  ) THEN
+    ALTER TABLE comidas RENAME COLUMN calorias TO calorias_totales;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM   information_schema.columns
+    WHERE  table_name = 'comidas' AND column_name = 'proteinas'
+  ) THEN
+    ALTER TABLE comidas RENAME COLUMN proteinas TO proteinas_totales;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM   information_schema.columns
+    WHERE  table_name = 'comidas' AND column_name = 'carbohidratos'
+  ) THEN
+    ALTER TABLE comidas RENAME COLUMN carbohidratos TO carbohidratos_totales;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM   information_schema.columns
+    WHERE  table_name = 'comidas' AND column_name = 'grasas'
+  ) THEN
+    ALTER TABLE comidas RENAME COLUMN grasas TO grasas_totales;
+  END IF;
+END$$;
+
+
+-- 10.5 ITEMS DENTRO DE LA COMIDA
+
+CREATE TABLE IF NOT EXISTS comidas_items (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  comida_id       TEXT NOT NULL REFERENCES comidas(id) ON DELETE CASCADE,
+
+  alimento_id     UUID REFERENCES alimentos(id),
+  porcion_id      UUID REFERENCES alimentos_porciones(id),
+
+  cantidad        NUMERIC(10,3),
+  gramos          NUMERIC(10,3),
+
+  calorias        NUMERIC(7,1),
+  proteina_g      NUMERIC(6,2),
+  carbohidratos_g NUMERIC(6,2),
+  grasa_g         NUMERIC(6,2),
+
+  creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT comidas_items_cantidad_pos CHECK (cantidad IS NULL OR cantidad >= 0),
+  CONSTRAINT comidas_items_gramos_pos   CHECK (gramos IS NULL OR gramos >= 0),
+  CONSTRAINT comidas_items_macros_pos   CHECK (
+    (calorias        IS NULL OR calorias        >= 0) AND
+    (proteina_g      IS NULL OR proteina_g      >= 0) AND
+    (carbohidratos_g IS NULL OR carbohidratos_g >= 0) AND
+    (grasa_g         IS NULL OR grasa_g         >= 0)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_comidas_items_comida   ON comidas_items(comida_id);
+CREATE INDEX IF NOT EXISTS idx_comidas_items_alimento ON comidas_items(alimento_id);
+
+
+-- 10.6 TRIGGER PARA actualizado_en EN alimentos
+
+CREATE OR REPLACE FUNCTION set_alimentos_actualizado_en()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.actualizado_en := NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_set_alimentos_actualizado_en ON alimentos;
+
+CREATE TRIGGER trg_set_alimentos_actualizado_en
+BEFORE UPDATE ON alimentos
+FOR EACH ROW
+EXECUTE FUNCTION set_alimentos_actualizado_en();
+
+
+-- ──────────────────────────────────────────────────────────
+--  MIGRACIONES ADICIONALES (ejecutar si las tablas ya existen)
 -- ──────────────────────────────────────────────────────────
 ALTER TABLE mediciones ADD COLUMN IF NOT EXISTS antebrazo   NUMERIC(5,1);
 ALTER TABLE mediciones ADD COLUMN IF NOT EXISTS cabeza      NUMERIC(5,1);

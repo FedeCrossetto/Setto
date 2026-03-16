@@ -401,27 +401,35 @@ export const mealsDB = {
   getAll: async () => {
     const userId = getCurrentUserId()
     const { data } = await supabase
-      .from('comidas').select('*')
-      .eq('usuario_id', userId).order('fecha', { ascending: false })
+      .from('comidas')
+      .select('*')
+      .eq('usuario_id', userId)
+      .order('fecha', { ascending: false })
     return (data || []).map(mapMealFromDB)
   },
   get: async (id) => {
-    const { data } = await supabase.from('comidas').select('*').eq('id', id).single()
+    const { data } = await supabase
+      .from('comidas')
+      .select('*')
+      .eq('id', id)
+      .single()
     return data ? mapMealFromDB(data) : null
   },
   save: async (meal) => {
     if (!meal.id) meal.id = generateId()
-    throw_if_error(await supabase.from('comidas').upsert({
-      id:            meal.id,
-      usuario_id:    getCurrentUserId(),
-      fecha:         meal.date,
-      tipo:          meal.tipo          || null,
-      nombre:        meal.name          || meal.nombre,
-      calorias:      meal.calorias      || null,
-      proteinas:     meal.proteinas     || null,
-      carbohidratos: meal.carbohidratos || null,
-      grasas:        meal.grasas        || null,
-    }))
+    throw_if_error(
+      await supabase.from('comidas').upsert({
+        id:                meal.id,
+        usuario_id:        getCurrentUserId(),
+        fecha:             meal.date,
+        tipo:              meal.tipo || meal.type || null,
+        nombre_comida:     meal.name || meal.nombre || null,
+        calorias_totales:  meal.calorias      ?? meal.calories ?? null,
+        proteinas_totales: meal.proteinas     ?? meal.protein  ?? null,
+        carbohidratos_totales: meal.carbohidratos ?? meal.carbs ?? null,
+        grasas_totales:    meal.grasas        ?? meal.fat      ?? null,
+      })
+    )
     return meal
   },
   delete: async (id) => {
@@ -430,23 +438,25 @@ export const mealsDB = {
   getByDate: async (date) => {
     const userId = getCurrentUserId()
     const { data } = await supabase
-      .from('comidas').select('*')
-      .eq('usuario_id', userId).eq('fecha', date)
+      .from('comidas')
+      .select('*')
+      .eq('usuario_id', userId)
+      .eq('fecha', date)
     return (data || []).map(mapMealFromDB)
   },
 }
 
 function mapMealFromDB(row) {
   return {
-    id:            row.id,
-    date:          row.fecha,
-    tipo:          row.tipo,
-    name:          row.nombre,
-    nombre:        row.nombre,
-    calorias:      row.calorias,
-    proteinas:     row.proteinas,
-    carbohidratos: row.carbohidratos,
-    grasas:        row.grasas,
+    id:          row.id,
+    date:        row.fecha,
+    tipo:        row.tipo,
+    name:        row.nombre_comida ?? row.nombre,
+    nombre:      row.nombre_comida ?? row.nombre,
+    calorias:    row.calorias_totales      ?? row.calorias,
+    proteinas:   row.proteinas_totales     ?? row.proteinas,
+    carbohidratos: row.carbohidratos_totales ?? row.carbohidratos,
+    grasas:      row.grasas_totales        ?? row.grasas,
   }
 }
 

@@ -4,6 +4,7 @@ import Card from '../components/ui/Card'
 import ProgressBar from '../components/ui/ProgressBar'
 import { mealsDB, generateId } from '../lib/db'
 import { todayStr } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 import mealsData from '../data/meals.json'
 
 const MEAL_TYPES = [
@@ -19,6 +20,11 @@ export default function Nutrition() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [addType, setAddType] = useState('desayuno')
   const [form, setForm] = useState({ name: '', calories: '', protein: '', carbs: '', fat: '' })
+  const [barcode, setBarcode] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState('')
   const today = todayStr()
 
   useEffect(() => {
@@ -29,18 +35,16 @@ export default function Nutrition() {
     const all = await mealsDB.getAll()
     setMeals(all.filter(m => m.date === today).sort((a, b) => {
       const order = { desayuno: 0, almuerzo: 1, cena: 2, snack: 3 }
-      return (order[a.type] || 4) - (order[b.type] || 4)
+      return (order[a.tipo] || 4) - (order[b.tipo] || 4)
     }))
   }
 
   const totals = meals.reduce(
     (acc, m) => {
-      if (m.completed) {
-        acc.calories += m.calories || 0
-        acc.protein += m.protein || 0
-        acc.carbs += m.carbs || 0
-        acc.fat += m.fat || 0
-      }
+      acc.calories += m.calorias || 0
+      acc.protein += m.proteinas || 0
+      acc.carbs += m.carbohidratos || 0
+      acc.fat += m.grasas || 0
       return acc
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
@@ -50,8 +54,9 @@ export default function Nutrition() {
 
   async function addMeal() {
     if (!form.name.trim()) return
+    const id = generateId()
     await mealsDB.save({
-      id: generateId(),
+      id,
       date: today,
       type: addType,
       name: form.name.trim(),
@@ -59,16 +64,28 @@ export default function Nutrition() {
       protein: Number(form.protein) || 0,
       carbs: Number(form.carbs) || 0,
       fat: Number(form.fat) || 0,
-      completed: false,
+    })
+    await supabase.from('comidas_items').insert({
+      comida_id: id,
+      cantidad: 1,
+      gramos: null,
+      calorias: Number(form.calories) || 0,
+      proteina_g: Number(form.protein) || 0,
+      carbohidratos_g: Number(form.carbs) || 0,
+      grasa_g: Number(form.fat) || 0,
     })
     setForm({ name: '', calories: '', protein: '', carbs: '', fat: '' })
+    setBarcode('')
+    setSearchQuery('')
+    setSearchResults([])
     setShowAdd(false)
     loadData()
   }
 
   async function addFromTemplate(template) {
+    const id = generateId()
     await mealsDB.save({
-      id: generateId(),
+      id,
       date: today,
       type: template.type,
       name: template.name,
@@ -77,14 +94,17 @@ export default function Nutrition() {
       protein: template.protein,
       carbs: template.carbs,
       fat: template.fat,
-      completed: false,
+    })
+    await supabase.from('comidas_items').insert({
+      comida_id: id,
+      cantidad: 1,
+      gramos: null,
+      calorias: template.calories,
+      proteina_g: template.protein,
+      carbohidratos_g: template.carbs,
+      grasa_g: template.fat,
     })
     setShowTemplates(false)
-    loadData()
-  }
-
-  async function toggleMeal(meal) {
-    await mealsDB.save({ ...meal, completed: !meal.completed })
     loadData()
   }
 
@@ -96,6 +116,83 @@ export default function Nutrition() {
   function openAddForType(type) {
     setAddType(type)
     setShowAdd(true)
+  }
+
+  async function searchFood() {
+    if (!searchQuery.trim()) return
+    setSearchLoading(true)
+    setSearchError('')
+    try {
+    const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buscar-alimento`,
+        {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mode: 'text', query: searchQuery.trim(), limit: 5 }),
+        }
+        )
+      const json = await res.json()
+      if (!res.ok) {
+        setSearchError(json.error || 'Error buscando alimento')
+        setSearchResults([])
+        return
+      }
+      const results = json.results || []
+      setSearchResults(results)
+    } catch (e) {
+      console.error(e)
+      setSearchError('Error de red buscando alimento')
+      setSearchResults([])
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  function applySearchResult(r) {
+    setForm({
+      name: r.nombre_display || '',
+      calories: r.calorias != null ? String(r.calorias) : '',
+      protein: r.proteina_g != null ? String(r.proteina_g) : '',
+      carbs: r.carbohidratos_g != null ? String(r.carbohidratos_g) : '',
+      fat: r.grasa_g != null ? String(r.grasa_g) : '',
+    })
+    if (r.codigo_barras) {
+      setBarcode(String(r.codigo_barras))
+    }
+  }
+
+  async function searchByBarcode() {
+    if (!barcode.trim()) return
+    setSearchLoading(true)
+    setSearchError('')
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buscar-alimento`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ mode: 'barcode', barcode: barcode.trim() }),
+        }
+      )
+      const json = await res.json()
+      if (!res.ok) {
+        setSearchError(json.error || 'Error buscando por código de barras')
+        return
+      }
+      const alimento = json.alimento || json.product || json
+      if (alimento) {
+        applySearchResult(alimento)
+      }
+    } catch (e) {
+      console.error(e)
+      setSearchError('Error de red buscando por código de barras')
+    } finally {
+      setSearchLoading(false)
+    }
   }
 
   return (
@@ -148,7 +245,7 @@ export default function Nutrition() {
 
         {/* Meals by Type */}
         {MEAL_TYPES.map(type => {
-          const typeMeals = meals.filter(m => m.type === type.key)
+          const typeMeals = meals.filter(m => m.tipo === type.key)
           return (
             <div key={type.key}>
               <div className="flex items-center justify-between mb-2">
@@ -171,21 +268,13 @@ export default function Nutrition() {
                   {typeMeals.map(meal => (
                     <Card key={meal.id} className="!p-3">
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => toggleMeal(meal)}
-                          className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                            meal.completed ? 'bg-primary text-white' : 'border-2 border-gray-300'
-                          }`}
-                        >
-                          {meal.completed && <span className="material-symbols-outlined text-sm">check</span>}
-                        </button>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${meal.completed ? 'line-through text-text-secondary' : ''}`}>{meal.name}</p>
+                          <p className="text-sm font-medium">{meal.name}</p>
                           <div className="flex gap-3 text-[10px] text-text-secondary mt-0.5">
-                            <span>{meal.calories} kcal</span>
-                            <span>P: {meal.protein}g</span>
-                            <span>C: {meal.carbs}g</span>
-                            <span>G: {meal.fat}g</span>
+                            <span>{meal.calorias} kcal</span>
+                            <span>P: {meal.proteinas}g</span>
+                            <span>C: {meal.carbohidratos}g</span>
+                            <span>G: {meal.grasas}g</span>
                           </div>
                         </div>
                         <button onClick={() => deleteMeal(meal.id)} className="p-1 text-gray-300 hover:text-red-500">
@@ -203,21 +292,21 @@ export default function Nutrition() {
 
       {/* Add Meal Modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Agregar Comida</h2>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-semibold">Agregar comida</h2>
               <button onClick={() => setShowAdd(false)} className="p-1">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-1 mb-3">
               {MEAL_TYPES.map(t => (
                 <button
                   key={t.key}
                   onClick={() => setAddType(t.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
                     addType === t.key ? 'bg-primary text-white' : 'bg-gray-100 text-text-secondary'
                   }`}
                 >
@@ -226,15 +315,60 @@ export default function Nutrition() {
               ))}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
+              <div>
+                <label className="text-[10px] text-text-secondary font-semibold">
+                  Buscar alimento (Open Food Facts)
+                </label>
+                <div className="flex gap-2 mt-1.5">
+                  <input
+                    type="text"
+                    placeholder="Ej: yogur descremado, arroz, etc."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={searchFood}
+                    disabled={searchLoading || !searchQuery.trim()}
+                    className="px-3 py-1.5 rounded-xl bg-primary text-white text-[11px] font-semibold disabled:opacity-40"
+                  >
+                    {searchLoading ? 'Buscando...' : 'Buscar'}
+                  </button>
+                </div>
+                {searchError && (
+                  <p className="text-[10px] text-red-500 mt-1">{searchError}</p>
+                )}
+                {searchResults.length > 0 && (
+                  <div className="mt-1.5 max-h-32 overflow-y-auto border border-gray-100 rounded-xl divide-y">
+                    {searchResults.map((r, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => applySearchResult(r)}
+                        className="w-full text-left px-3 py-1.5 bg-white hover:bg-gray-50 text-[11px]"
+                      >
+                        <div className="font-semibold text-[11px]">
+                          {r.nombre_display}
+                        </div>
+                        <div className="text-[10px] text-text-secondary flex gap-2 mt-0.5">
+                          {r.marca && <span>{r.marca}</span>}
+                          {r.calorias != null && <span>{r.calorias} kcal/100g</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="Nombre de la comida"
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-primary"
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 {[
                   { key: 'calories', label: 'Calorías (kcal)' },
                   { key: 'protein', label: 'Proteína (g)' },
@@ -249,14 +383,18 @@ export default function Nutrition() {
                       placeholder="0"
                       value={form[f.key]}
                       onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                      className="w-full mt-1 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-primary"
+                      className="w-full mt-1 px-3 py-1.75 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 ))}
               </div>
             </div>
 
-            <button onClick={addMeal} disabled={!form.name.trim()} className="w-full py-3 bg-primary text-white text-sm font-semibold rounded-xl mt-4 disabled:opacity-40">
+            <button
+              onClick={addMeal}
+              disabled={!form.name.trim()}
+              className="w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-xl mt-3 disabled:opacity-40"
+            >
               Agregar
             </button>
           </div>
