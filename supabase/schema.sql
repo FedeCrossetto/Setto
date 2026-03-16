@@ -5,22 +5,25 @@
 
 -- ──────────────────────────────────────────────────────────
 --  1. USUARIOS
---     Gestionados por el admin (no usa Supabase Auth)
+--     Business profile table.
+--     auth_user_id links to auth.users once Supabase Auth is enabled
+--     (Strategy B bridge — nullable until migration is complete).
 -- ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS usuarios (
-  id          UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  username    TEXT    UNIQUE NOT NULL,
-  password    TEXT    NOT NULL,
-  nombre      TEXT,
-  apellido    TEXT,
-  edad        INTEGER,
-  sexo        TEXT    CHECK (sexo IN ('masculino', 'femenino', 'otro')),
-  peso        NUMERIC(5,1),
-  altura      NUMERIC(5,1),
-  objetivo    TEXT    CHECK (objetivo IN ('perder peso', 'ganar músculo', 'mantener', 'rendimiento')),
-  nivel       TEXT    CHECK (nivel IN ('principiante', 'intermedio', 'avanzado')),
-  avatar_url  TEXT,
-  creado_en   TIMESTAMPTZ DEFAULT NOW()
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  username     TEXT    UNIQUE NOT NULL,
+  password     TEXT    NOT NULL,
+  nombre       TEXT,
+  apellido     TEXT,
+  edad         INTEGER,
+  sexo         TEXT    CHECK (sexo IN ('masculino', 'femenino', 'otro')),
+  peso         NUMERIC(5,1),
+  altura       NUMERIC(5,1),
+  objetivo     TEXT    CHECK (objetivo IN ('perder peso', 'ganar músculo', 'mantener', 'rendimiento')),
+  nivel        TEXT    CHECK (nivel IN ('principiante', 'intermedio', 'avanzado')),
+  avatar_url   TEXT,
+  creado_en    TIMESTAMPTZ DEFAULT NOW(),
+  auth_user_id UUID    UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 -- ──────────────────────────────────────────────────────────
@@ -394,3 +397,13 @@ ALTER TABLE rutinas ADD COLUMN IF NOT EXISTS image_url TEXT;
 --  Removed: hardcoded admin credential (security — C4 audit finding).
 --  Create users manually via the app or Supabase dashboard.
 -- ──────────────────────────────────────────────────────────
+
+-- ──────────────────────────────────────────────────────────
+--  AUTH MIGRATION — Strategy B, Step 1
+--  Adds bridge column linking usuarios to auth.users.
+--  Nullable: existing rows are unaffected.
+--  Idempotent: safe to run on a live database that already
+--  has this column (IF NOT EXISTS).
+-- ──────────────────────────────────────────────────────────
+ALTER TABLE usuarios
+  ADD COLUMN IF NOT EXISTS auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL;
