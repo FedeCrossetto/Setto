@@ -390,14 +390,7 @@ ALTER TABLE sesion_ejercicios  RENAME COLUMN gif_url TO image_url;
 ALTER TABLE rutinas ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- ──────────────────────────────────────────────────────────
---  USUARIO SEED (cambiar password antes de producción)
+--  USUARIO SEED
+--  Removed: hardcoded admin credential (security — C4 audit finding).
+--  Create users manually via the app or Supabase dashboard.
 -- ──────────────────────────────────────────────────────────
-INSERT INTO usuarios (id, username, password, nombre, nivel, objetivo)
-VALUES (
-  '00000000-0000-0000-0000-000000000001',
-  'admin',
-  'setto123',
-  'Administrador',
-  'intermedio',
-  'ganar músculo'
-) ON CONFLICT (username) DO NOTHING;

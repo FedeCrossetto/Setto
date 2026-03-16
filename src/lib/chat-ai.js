@@ -14,10 +14,10 @@ async function getUserContext() {
   const latest = sorted[0]
   const todayMeals = meals.filter(m => m.date === today)
   const completedMeals = todayMeals.filter(m => m.completed)
-  const todayCalories = completedMeals.reduce((s, m) => s + (m.calories || 0), 0)
-  const todayProtein = completedMeals.reduce((s, m) => s + (m.protein || 0), 0)
-  const todayCarbs = completedMeals.reduce((s, m) => s + (m.carbs || 0), 0)
-  const todayFat = completedMeals.reduce((s, m) => s + (m.fat || 0), 0)
+  const todayCalories = completedMeals.reduce((s, m) => s + (m.calorias || 0), 0)
+  const todayProtein = completedMeals.reduce((s, m) => s + (m.proteinas || 0), 0)
+  const todayCarbs = completedMeals.reduce((s, m) => s + (m.carbohidratos || 0), 0)
+  const todayFat = completedMeals.reduce((s, m) => s + (m.grasas || 0), 0)
 
   const weekSessions = sessions.filter(s => {
     const diff = (new Date(today) - new Date(s.date)) / 86400000

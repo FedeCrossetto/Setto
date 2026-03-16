@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Card from '../components/ui/Card'
 import ExerciseDetail from '../components/ExerciseDetail'
@@ -18,6 +18,7 @@ export default function WorkoutSession() {
   const { activeSession, setActiveSession, clearActiveSession, elapsed } = useActiveSession()
   const [session, setSession] = useState(null)
   const [showDetail, setShowDetail] = useState(null)
+  const saveTimeoutRef = useRef(null)
 
   useEffect(() => {
     sessionsDB.get(id).then(s => {
@@ -48,7 +49,7 @@ export default function WorkoutSession() {
   const totalSets = session.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
 
-  async function updateSet(exIdx, setIdx, field, value) {
+  function updateSet(exIdx, setIdx, field, value) {
     const updated = { ...session }
     updated.exercises = session.exercises.map((ex, ei) =>
       ei !== exIdx ? ex : {
@@ -59,7 +60,8 @@ export default function WorkoutSession() {
       }
     )
     setSession(updated)
-    await sessionsDB.save(updated)
+    clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => sessionsDB.save(updated), 600)
   }
 
   async function toggleSet(exIdx, setIdx) {
@@ -78,6 +80,7 @@ export default function WorkoutSession() {
       ),
     }
     setSession(updated)
+    clearTimeout(saveTimeoutRef.current)
     await sessionsDB.save(updated)
   }
 
@@ -94,10 +97,12 @@ export default function WorkoutSession() {
       ),
     }
     setSession(updated)
+    clearTimeout(saveTimeoutRef.current)
     await sessionsDB.save(updated)
   }
 
   async function finishSession() {
+    clearTimeout(saveTimeoutRef.current)
     const updated = {
       ...session,
       completed: true,
