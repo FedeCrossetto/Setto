@@ -1,43 +1,31 @@
 import { useState, useEffect } from 'react'
-import { getExerciseById, searchExercises } from '../lib/exercisedb'
+import { getExerciseById } from '../lib/exercisedb'
+import { getSearchTermsForId, getDisplayName, searchFirstWithImage } from '../lib/exerciseSearch'
 import MuscleDiagram from './MuscleDiagram'
 
-// Maps local exercise IDs (from templates) to ExerciseDB English search terms
-const LOCAL_ID_TO_SEARCH = {
-  'bench-press': 'barbell bench press chest',
-  'incline-bench': 'incline barbell bench press',
-  'chest-fly': 'dumbbell fly chest',
-  'cable-crossover': 'cable crossover chest fly',
-  'tricep-pushdown': 'cable tricep pushdown',
-  'skull-crusher': 'skull crusher ez bar tricep',
-  'overhead-tricep': 'overhead tricep extension dumbbell',
-  'deadlift': 'barbell deadlift back',
-  'barbell-row': 'bent over barbell row',
-  'lat-pulldown': 'cable lat pulldown',
-  'seated-row': 'seated cable row',
-  'pull-up': 'pull up',
-  'barbell-curl': 'barbell curl bicep',
-  'hammer-curl': 'dumbbell hammer curl bicep',
-  'preacher-curl': 'preacher curl bicep',
-  'squat': 'barbell squat legs',
-  'leg-press': 'leg press machine',
-  'leg-extension': 'leg extension machine quad',
-  'leg-curl': 'lying leg curl hamstring',
-  'calf-raise': 'standing calf raise',
-  'shoulder-press': 'barbell overhead shoulder press',
-  'lateral-raise': 'dumbbell lateral raise shoulder',
-  'face-pull': 'cable face pull rear delt',
-  'plank': 'plank abs core',
-  'crunch': 'crunch abs',
-  'romanian-deadlift': 'romanian deadlift hamstring',
-  'hip-thrust': 'barbell hip thrust glute',
-  'lunges': 'dumbbell lunge leg',
+async function translateSteps(steps) {
+  const results = await Promise.all(
+    steps.map(async text => {
+      try {
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 450))}&langpair=en|es`
+        const res = await fetch(url)
+        const data = await res.json()
+        const translated = data.responseData?.translatedText
+        return translated && translated !== text ? translated : text
+      } catch {
+        return text
+      }
+    })
+  )
+  return results
 }
 
 export default function ExerciseDetail({ exercise, onClose, onAdd }) {
   const [detail, setDetail] = useState(exercise)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('diagram')
+  const [translatedSteps, setTranslatedSteps] = useState(null)
+  const [translating, setTranslating] = useState(false)
 
   useEffect(() => {
     async function fetchDetail() {
@@ -47,19 +35,17 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
         let result = null
 
         if (id) {
-          const searchTerm = LOCAL_ID_TO_SEARCH[id]
-          if (searchTerm) {
-            // Local exercise ID → search ExerciseDB by English name
-            const { exercises } = await searchExercises(searchTerm, { limit: 3 })
-            if (exercises?.length > 0) result = exercises[0]
+          const terms = getSearchTermsForId(id)
+          if (terms.length > 0) {
+            result = await searchFirstWithImage(terms)
           } else {
-            // ExerciseDB native ID → fetch directly
             result = await getExerciseById(id)
           }
         }
 
         if (result) {
-          setDetail(prev => ({ ...result, name: prev?.name || result.name }))
+          const displayName = getDisplayName(id) || exercise?.name || result.name
+          setDetail(prev => ({ ...result, name: displayName }))
         }
       } catch (e) {
         console.error('ExerciseDetail fetch:', e)
@@ -67,8 +53,22 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
         setLoading(false)
       }
     }
+    setTranslatedSteps(null)
     fetchDetail()
   }, [exercise])
+
+  async function handleTabChange(tabId) {
+    setActiveTab(tabId)
+    if (tabId === 'instructions' && !translatedSteps && !translating && detail?.instructions?.length > 0) {
+      setTranslating(true)
+      try {
+        const translated = await translateSteps(detail.instructions)
+        setTranslatedSteps(translated)
+      } finally {
+        setTranslating(false)
+      }
+    }
+  }
 
   if (!detail) return null
 
@@ -102,7 +102,7 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
           {tabs.map(t => (
             <button
               key={t.id}
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => handleTabChange(t.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 activeTab === t.id
                   ? 'bg-primary/15 text-primary'
@@ -183,11 +183,11 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
 
               {/* ── GIF TAB ── */}
               {activeTab === 'gif' && (
-                detail.gifUrl ? (
+                detail.imageUrl ? (
                   <div className="space-y-3">
                     <div className="rounded-2xl overflow-hidden bg-track">
                       <img
-                        src={detail.gifUrl}
+                        src={detail.imageUrl}
                         alt={detail.name}
                         className="w-full h-auto"
                       />
@@ -208,16 +208,24 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
               {activeTab === 'instructions' && (
                 <div className="space-y-3">
                   {detail.instructions?.length > 0 ? (
-                    <ol className="space-y-3">
-                      {detail.instructions.map((step, i) => (
-                        <li key={i} className="flex gap-3 text-sm text-text">
-                          <span className="shrink-0 w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center">
-                            {i + 1}
-                          </span>
-                          <span className="flex-1 leading-relaxed pt-0.5">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
+                    <>
+                      {translating && (
+                        <div className="flex items-center gap-2 text-xs text-text-secondary pb-1">
+                          <span className="material-symbols-outlined text-sm animate-spin text-primary">progress_activity</span>
+                          Traduciendo al español…
+                        </div>
+                      )}
+                      <ol className="space-y-3">
+                        {(translatedSteps || detail.instructions).map((step, i) => (
+                          <li key={i} className="flex gap-3 text-sm text-text">
+                            <span className="shrink-0 w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center">
+                              {i + 1}
+                            </span>
+                            <span className="flex-1 leading-relaxed pt-0.5">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </>
                   ) : (
                     <div className="text-center py-8 text-text-secondary">
                       <span className="material-symbols-outlined text-3xl mb-2 block">info</span>

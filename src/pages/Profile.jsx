@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { usersDB } from '../lib/db'
+import { usersDB, measurementsDB } from '../lib/db'
 import Header from '../components/Header'
 import Card from '../components/ui/Card'
 
@@ -48,6 +48,12 @@ const SEXOS = {
   'otro':      'Otro',
 }
 
+function fmtDate(d) {
+  if (!d) return null
+  const dt = new Date(d + 'T12:00:00')
+  return isNaN(dt.getTime()) ? null : dt.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 function InfoRow({ icon, label, value }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
@@ -66,7 +72,17 @@ export default function Profile() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [lastMeasDate, setLastMeasDate] = useState(null)
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!user) return
+    measurementsDB.getAll().then(data => {
+      if (!data.length) return
+      const sorted = data.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+      setLastMeasDate(sorted[0]?.date ?? null)
+    })
+  }, [user])
 
   if (!user) return null
 
@@ -196,14 +212,17 @@ export default function Profile() {
         {/* Stats rápidas */}
         <div className="grid grid-cols-3 gap-2.5">
           {[
-            { label: 'Peso', value: user.peso ? `${user.peso} kg` : '—', icon: 'monitor_weight' },
-            { label: 'Altura', value: user.altura ? `${user.altura} cm` : '—', icon: 'height' },
-            { label: 'IMC', value: imc || '—', icon: 'analytics' },
+            { label: 'Peso', value: user.peso ? `${user.peso} kg` : '—', icon: 'monitor_weight', showDate: true },
+            { label: 'Altura', value: user.altura ? `${user.altura} cm` : '—', icon: 'height', showDate: false },
+            { label: 'IMC', value: imc || '—', icon: 'analytics', showDate: true },
           ].map(s => (
             <div key={s.label} className="bg-card border border-border rounded-2xl p-3 text-center">
               <span className="material-symbols-outlined text-primary text-lg block mb-1">{s.icon}</span>
               <p className="text-base font-bold text-text">{s.value}</p>
               <p className="text-[10px] text-text-secondary mt-0.5">{s.label}</p>
+              {s.showDate && lastMeasDate && (
+                <p className="text-[8px] text-text-secondary/60 mt-0.5">{fmtDate(lastMeasDate)}</p>
+              )}
             </div>
           ))}
         </div>

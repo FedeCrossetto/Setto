@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { searchExercises, getMuscles, filterExercises } from '../lib/exercisedb'
+import { getEnglishTermsForQuery } from '../lib/exerciseSearch'
 
 export default function ExercisePicker({ selected = [], onToggle, onClose, onViewDetail }) {
   const [query, setQuery] = useState('')
@@ -21,16 +22,20 @@ export default function ExercisePicker({ selected = [], onToggle, onClose, onVie
   const loadExercises = useCallback(async (search, muscle, newOffset, reset = false) => {
     setLoading(true)
     try {
-      let data
+      let exercises = []
       if (search.trim()) {
-        data = await searchExercises(search, { offset: newOffset, limit: 25 })
+        const englishTerms = getEnglishTermsForQuery(search)
+        const apiQuery = englishTerms.length > 0 ? englishTerms[0] : search
+        const data = await searchExercises(apiQuery, { offset: newOffset, limit: 25 })
+        exercises = data.exercises || []
       } else if (muscle) {
-        data = await filterExercises({ muscles: muscle, offset: newOffset, limit: 25 })
+        const data = await filterExercises({ muscles: muscle, offset: newOffset, limit: 25 })
+        exercises = data.exercises || []
       } else {
-        data = await filterExercises({ offset: newOffset, limit: 25 })
+        const data = await filterExercises({ offset: newOffset, limit: 25 })
+        exercises = data.exercises || []
       }
 
-      const exercises = data.exercises || []
       setResults(prev => reset ? exercises : [...prev, ...exercises])
       setHasMore(exercises.length === 25)
       setOffset(newOffset + exercises.length)
@@ -90,7 +95,7 @@ export default function ExercisePicker({ selected = [], onToggle, onClose, onVie
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-lg">search</span>
             <input
               type="text"
-              placeholder="Buscar ejercicio..."
+              placeholder="Buscar en español o inglés (ej. Rompecráneos, Peso muerto…)"
               value={query}
               onChange={e => handleSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-bg border border-border text-sm text-text focus:outline-none focus:border-primary"
@@ -144,10 +149,10 @@ export default function ExercisePicker({ selected = [], onToggle, onClose, onVie
                     }`}
                     onClick={() => onToggle(ex)}
                   >
-                    {/* GIF Thumbnail */}
-                    {ex.gifUrl ? (
+                    {/* Image Thumbnail */}
+                    {ex.imageUrl ? (
                       <img
-                        src={ex.gifUrl}
+                        src={ex.imageUrl}
                         alt={ex.name}
                         className="w-14 h-14 rounded-lg object-cover bg-track shrink-0"
                         loading="lazy"

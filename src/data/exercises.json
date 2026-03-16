@@ -30,72 +30,84 @@
       "name": "Pecho y Tríceps",
       "category": "Push",
       "description": "Enfoque en empuje: pecho + tríceps",
+      "imageUrl": "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&q=80&fit=crop",
       "exercises": ["bench-press", "incline-bench", "chest-fly", "cable-crossover", "tricep-pushdown", "skull-crusher", "overhead-tricep"]
     },
     {
       "name": "Espalda y Bíceps",
       "category": "Pull",
       "description": "Enfoque en tirón: espalda + bíceps",
+      "imageUrl": "https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?w=800&q=80&fit=crop",
       "exercises": ["deadlift", "barbell-row", "lat-pulldown", "seated-row", "barbell-curl", "hammer-curl", "preacher-curl"]
     },
     {
       "name": "Piernas Completo",
       "category": "Piernas",
       "description": "Cuádriceps, isquiotibiales y gemelos",
+      "imageUrl": "https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=800&q=80&fit=crop",
       "exercises": ["squat", "leg-press", "leg-extension", "leg-curl", "calf-raise"]
     },
     {
       "name": "Hombros y Core",
       "category": "Hombros",
       "description": "Deltoides + abdominales",
+      "imageUrl": "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=800&q=80&fit=crop",
       "exercises": ["shoulder-press", "lateral-raise", "face-pull", "plank", "crunch"]
     },
     {
       "name": "Push (PPL)",
       "category": "PPL",
       "description": "Pecho, hombros y tríceps",
+      "imageUrl": "https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=800&q=80&fit=crop",
       "exercises": ["bench-press", "incline-bench", "shoulder-press", "lateral-raise", "tricep-pushdown", "overhead-tricep"]
     },
     {
       "name": "Pull (PPL)",
       "category": "PPL",
       "description": "Espalda y bíceps",
+      "imageUrl": "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800&q=80&fit=crop",
       "exercises": ["deadlift", "barbell-row", "lat-pulldown", "seated-row", "barbell-curl", "hammer-curl"]
     },
     {
       "name": "Legs (PPL)",
       "category": "PPL",
       "description": "Piernas completo + core",
+      "imageUrl": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80&fit=crop",
       "exercises": ["squat", "leg-press", "leg-extension", "leg-curl", "calf-raise", "plank"]
     },
     {
       "name": "Full Body A",
       "category": "Full Body",
       "description": "Compuestos principales de todo el cuerpo",
+      "imageUrl": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80&fit=crop",
       "exercises": ["bench-press", "barbell-row", "squat", "shoulder-press", "barbell-curl", "tricep-pushdown"]
     },
     {
       "name": "Full Body B",
       "category": "Full Body",
       "description": "Variantes complementarias full body",
+      "imageUrl": "https://images.unsplash.com/photo-1549576490-b0b4831ef60a?w=800&q=80&fit=crop",
       "exercises": ["incline-bench", "lat-pulldown", "leg-press", "lateral-raise", "hammer-curl", "skull-crusher"]
     },
     {
       "name": "Upper Body",
       "category": "Upper/Lower",
       "description": "Tren superior completo",
+      "imageUrl": "https://images.unsplash.com/photo-1583454155184-870a1f63aebc?w=800&q=80&fit=crop",
       "exercises": ["bench-press", "barbell-row", "shoulder-press", "barbell-curl", "tricep-pushdown", "lateral-raise"]
     },
     {
       "name": "Lower Body",
       "category": "Upper/Lower",
       "description": "Tren inferior completo",
+      "imageUrl": "https://images.unsplash.com/photo-1541534741688-6078c787b672?w=800&q=80&fit=crop",
       "exercises": ["squat", "deadlift", "leg-press", "leg-curl", "leg-extension", "calf-raise"]
     },
     {
       "name": "Brazos",
       "category": "Aislamiento",
       "description": "Bíceps + Tríceps intenso",
+      "imageUrl": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800&q=80&fit=crop",
       "exercises": ["barbell-curl", "hammer-curl", "preacher-curl", "tricep-pushdown", "skull-crusher", "overhead-tricep"]
     }
   ]

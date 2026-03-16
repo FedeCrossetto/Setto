@@ -12,7 +12,7 @@ const tabs = [
 export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-4 safe-bottom z-50 flex justify-center">
-      <div className="flex items-center justify-between h-12 rounded-full bg-surface text-white shadow-xl px-2 min-w-[280px] max-w-sm gap-1">
+      <div className="flex items-center justify-between h-12 rounded-full bg-card text-white shadow-[0_4px_24px_rgba(0,0,0,0.25)] border border-border px-2 min-w-[280px] max-w-sm gap-1">
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}

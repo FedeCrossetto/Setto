@@ -123,6 +123,7 @@ export const routinesDB = {
       id:         routine.id,
       usuario_id: userId,
       nombre:     routine.name,
+      image_url:  routine.imageUrl || null,
       creado_en:  routine.createdAt || new Date().toISOString(),
     }))
 
@@ -137,7 +138,7 @@ export const routinesDB = {
           orden:             i,
           exercise_id:       ex.exerciseId || ex.id || '',
           nombre:            ex.name,
-          gif_url:           ex.gifUrl || '',
+          image_url:         ex.imageUrl || '',
           musculos_objetivo: ex.targetMuscles || [],
           series_default:    typeof ex.sets === 'number' ? ex.sets : 3,
         }))
@@ -157,15 +158,16 @@ function mapRoutineFromDB(row) {
     .map(ex => ({
       exerciseId:    ex.exercise_id,
       name:          ex.nombre,
-      gifUrl:        ex.gif_url || '',
+      imageUrl:      ex.image_url || '',
       targetMuscles: ex.musculos_objetivo || [],
       sets:          ex.series_default || 3,
     }))
   return {
-    id:         row.id,
-    name:       row.nombre,
+    id:        row.id,
+    name:      row.nombre,
+    imageUrl:  row.image_url || '',
     exercises,
-    createdAt:  row.creado_en,
+    createdAt: row.creado_en,
   }
 }
 
@@ -233,7 +235,7 @@ export const sessionsDB = {
           orden:             i,
           exercise_id:       ex.exerciseId || '',
           nombre:            ex.name,
-          gif_url:           ex.gifUrl || '',
+          image_url:         ex.imageUrl || '',
           musculos_objetivo: ex.targetMuscles || [],
         }))
       ))
@@ -286,7 +288,7 @@ function mapSessionFromDB(row) {
     .map(ex => ({
       exerciseId:    ex.exercise_id,
       name:          ex.nombre,
-      gifUrl:        ex.gif_url || '',
+      imageUrl:      ex.image_url || '',
       targetMuscles: ex.musculos_objetivo || [],
       sets: (ex.sesion_series || [])
         .sort((a, b) => a.numero_serie - b.numero_serie)
@@ -312,43 +314,47 @@ function mapSessionFromDB(row) {
 // ─── MEDICIONES ──────────────────────────────────────────────
 
 export const measurementsDB = {
-  getAll: async () => {
-    const userId = getCurrentUserId()
+  // forUserId: optional userId override (for admin acting on behalf of another user)
+  getAll: async (forUserId) => {
+    const userId = forUserId || getCurrentUserId()
     const { data } = await supabase
       .from('mediciones')
       .select('*')
       .eq('usuario_id', userId)
-      .order('fecha', { ascending: false })
+      .order('fecha', { ascending: true })
     return (data || []).map(mapMeasurementFromDB)
   },
   get: async (id) => {
     const { data } = await supabase.from('mediciones').select('*').eq('id', id).single()
     return data ? mapMeasurementFromDB(data) : null
   },
-  save: async (m) => {
+  save: async (m, forUserId) => {
     if (!m.id) m.id = generateId()
+    const userId = forUserId || getCurrentUserId()
     // Validar que la fecha sea ISO (YYYY-MM-DD) antes de enviar a Supabase
     const fecha = /^\d{4}-\d{2}-\d{2}$/.test(m.date) ? m.date : null
     if (!fecha) throw new Error(`Fecha inválida: "${m.date}"`)
     throw_if_error(await supabase.from('mediciones').upsert({
       id:              m.id,
-      usuario_id:      getCurrentUserId(),
+      usuario_id:      userId,
       fecha:           fecha,
-      peso:            m.peso            || null,
-      grasa_corporal:  m.grasaCorporal   || null,
-      masa_muscular:   m.masaMuscular    || null,
-      altura:          m.altura          || null,
-      cintura:         m.cintura         || null,
-      cadera:          m.cadera          || null,
-      pecho:           m.pecho           || null,
-      brazo_izq:       m.brazoIzq        || null,
-      brazo_der:       m.brazoDer        || null,
-      muslo_izq:       m.musloIzq        || null,
-      muslo_der:       m.musloDer        || null,
-      pantorrilla_izq: m.pantorrillaIzq  || null,
-      pantorrilla_der: m.pantorrillaDer  || null,
-      cuello:          m.cuello          || null,
-      notas:           m.notas           || null,
+      peso:            m.peso                                      ?? null,
+      grasa_corporal:  m.grasaCorporal  ?? m.grasa                 ?? null,
+      masa_muscular:   m.masaMuscular   ?? m.musculo               ?? null,
+      altura:          m.altura                                    ?? null,
+      cintura:         m.cintura                                   ?? null,
+      cadera:          m.cadera                                    ?? null,
+      pecho:           m.pecho                                     ?? null,
+      brazo_izq:       m.brazoIzq       ?? m.brazo                 ?? null,
+      brazo_der:       m.brazoDer       ?? m.brazoFlex             ?? null,
+      antebrazo:       m.antebrazo                                 ?? null,
+      muslo_izq:       m.musloIzq       ?? m.pierna   ?? m.musloSup ?? null,
+      muslo_der:       m.musloDer       ?? m.musloMed              ?? null,
+      pantorrilla_izq: m.pantorrillaIzq ?? m.pantorrilla           ?? null,
+      pantorrilla_der: m.pantorrillaDer                            ?? null,
+      cuello:          m.cuello                                    ?? null,
+      cabeza:          m.cabeza                                    ?? null,
+      notas:           m.notas                                     ?? null,
     }))
     return m
   },
@@ -376,13 +382,15 @@ function mapMeasurementFromDB(row) {
     cintura:        row.cintura,
     cadera:         row.cadera,
     pecho:          row.pecho,
-    brazoIzq:       row.brazo_izq,
-    brazoDer:       row.brazo_der,
-    musloIzq:       row.muslo_izq,
-    musloDer:       row.muslo_der,
+    brazoIzq:       row.brazo_izq,       // brazo relajado
+    brazoFlex:      row.brazo_der,       // brazo flexionado
+    antebrazo:      row.antebrazo,
+    musloIzq:       row.muslo_izq,       // muslo superior
+    musloDer:       row.muslo_der,       // muslo medial
     pantorrillaIzq: row.pantorrilla_izq,
     pantorrillaDer: row.pantorrilla_der,
     cuello:         row.cuello,
+    cabeza:         row.cabeza,
     notas:          row.notas,
   }
 }

@@ -1,568 +1,428 @@
-import { useState, useEffect } from 'react'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+import { useState, useEffect, useRef } from 'react'
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
 import Header from '../components/Header'
 import Card from '../components/ui/Card'
-import { measurementsDB, importsDB, generateId } from '../lib/db'
+import { measurementsDB, usersDB, generateId } from '../lib/db'
 import { parseExcelFile } from '../lib/excel-parser'
+import { useAuth } from '../contexts/AuthContext'
 
-const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+function fmtAxis(d) { if (!d) return ''; const p = d.split('-'); return p.length < 2 ? d : `${MONTHS[parseInt(p[1])-1]} '${p[0].slice(2)}` }
+function fmtLong(d) { if (!d) return '—'; const dt = new Date(d+'T12:00:00'); return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}) }
+function calcDelta(a, b) { return a != null && b != null ? +(a - b).toFixed(1) : null }
 
-const EVOLUTION_TABS = [
-  { key: 'peso', label: 'Peso', unit: 'kg', dataKey: 'peso' },
-  { key: 'grasa', label: 'Masa grasa', unit: '%', dataKey: 'grasa' },
-  { key: 'muscle', label: 'Masa muscular', unit: 'kg', dataKey: 'muscleMassKg' },
-  { key: 'cintura', label: 'Cintura', unit: 'cm', dataKey: 'cintura' },
+const COMP_CARDS = [
+  { key: 'peso',    label: 'Peso',          unit: 'kg', icon: 'monitor_weight', field: m => m.peso,          lowerBetter: true  },
+  { key: 'musculo', label: 'Masa muscular', unit: 'kg', icon: 'exercise',       field: m => m.masaMuscular,  lowerBetter: false },
+  { key: 'grasa',   label: 'Masa adiposa',  unit: '%',  icon: 'water_drop',     field: m => m.grasaCorporal, lowerBetter: true  },
 ]
 
-const COMPOSITION_COLORS = ['#21c45d', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899']
-const COMPOSITION_NAMES = [
-  { key: 'fatMassKg', label: 'Grasa' },
-  { key: 'muscleMassKg', label: 'Músculo' },
-  { key: 'residualMassKg', label: 'Residual' },
-  { key: 'boneMassKg', label: 'Hueso' },
-  { key: 'skinMassKg', label: 'Piel' },
+const PERIM_OPTIONS = [
+  { key: 'cabeza',          label: 'Cabeza',             field: m => m.cabeza          },
+  { key: 'brazoIzq',        label: 'Brazo relajado',     field: m => m.brazoIzq        },
+  { key: 'brazoFlex',       label: 'Brazo flexionado',   field: m => m.brazoFlex       },
+  { key: 'antebrazo',       label: 'Antebrazo',          field: m => m.antebrazo       },
+  { key: 'pecho',           label: 'Tórax mesoesternal', field: m => m.pecho           },
+  { key: 'cintura',         label: 'Cintura (mínima)',   field: m => m.cintura         },
+  { key: 'cadera',          label: 'Caderas (máxima)',   field: m => m.cadera          },
+  { key: 'musloIzq',        label: 'Muslo superior',     field: m => m.musloIzq        },
+  { key: 'musloDer',        label: 'Muslo medial',       field: m => m.musloDer        },
+  { key: 'pantorrillaIzq',  label: 'Pantorrilla (máx.)', field: m => m.pantorrillaIzq  },
+  { key: 'cuello',          label: 'Cuello',             field: m => m.cuello          },
 ]
 
-const MEDIDAS_IMPORTANTES = [
-  { key: 'pecho', label: 'Pecho', perimeterKey: 'thoraxCm' },
-  { key: 'cintura', label: 'Cintura', perimeterKey: 'waistMinCm' },
-  { key: 'cadera', label: 'Cadera', perimeterKey: 'hipsMaxCm' },
-  { key: 'brazo', label: 'Brazo', perimeterKey: 'relaxedArmCm' },
-  { key: 'pierna', label: 'Pierna', perimeterKey: 'upperThighCm' },
+const CHART_TABS = [
+  { key: 'peso',    label: 'Peso',    unit: 'kg', field: m => m.peso,          lowerBetter: true  },
+  { key: 'grasa',   label: 'Grasa',   unit: '%',  field: m => m.grasaCorporal, lowerBetter: true  },
+  { key: 'musculo', label: 'Músculo', unit: 'kg', field: m => m.masaMuscular,  lowerBetter: false },
 ]
 
-const FIELDS = [
-  { key: 'peso', label: 'Peso (kg)', icon: 'monitor_weight' },
-  { key: 'grasa', label: 'Grasa (%)', icon: 'water_drop' },
-  { key: 'pecho', label: 'Pecho (cm)', icon: 'straighten' },
-  { key: 'cintura', label: 'Cintura (cm)', icon: 'straighten' },
-  { key: 'cadera', label: 'Cadera (cm)', icon: 'straighten' },
-  { key: 'brazo', label: 'Brazo (cm)', icon: 'straighten' },
-  { key: 'pierna', label: 'Pierna (cm)', icon: 'straighten' },
-]
+function ChartTooltip({ active, payload, label, unit }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background:'var(--color-card)', border:'1px solid var(--color-border)', borderRadius:10, padding:'6px 12px', boxShadow:'0 4px 16px rgba(0,0,0,.14)' }}>
+      <p style={{ fontSize:10, color:'var(--color-text-secondary)', marginBottom:2 }}>{label}</p>
+      <p style={{ fontSize:14, fontWeight:700, color:'var(--color-text)', margin:0 }}>{Number(payload[0].value).toFixed(1)} {unit}</p>
+    </div>
+  )
+}
 
-const DETAIL_GROUPS = [
-  { title: 'Pliegues (mm)', source: 'skinfolds', keys: ['tricepsMm', 'subscapularMm', 'supraespinalMm', 'abdominalMm', 'medialThighMm', 'calfMm'], labels: ['Tríceps', 'Subescapular', 'Supraespinal', 'Abdominal', 'Muslo', 'Pantorrilla'] },
-  { title: 'Perímetros secundarios (cm)', source: 'perimeters', keys: ['relaxedArmCm', 'flexedArmCm', 'upperThighCm', 'medialThighCm', 'calfMaxCm', 'thoraxCm'], labels: ['Brazo relajado', 'Brazo flexionado', 'Muslo superior', 'Muslo medial', 'Pantorrilla', 'Tórax'] },
-]
+// ─── Diagnostic engine ───────────────────────────────────────
 
-function formatMonth(dateStr) {
-  if (!dateStr) return '—'
-  const parts = dateStr.split('-')
-  if (parts.length >= 2) {
-    const monthIdx = parseInt(parts[1]) - 1
-    const year = parts[0]?.slice(2)
-    return `${MONTH_NAMES[monthIdx] || parts[1]}${year ? " '" + year : ''}`
+function buildDiagnostic(latest, prev) {
+  if (!latest || !prev) return null
+  const items = []
+
+  const peso  = calcDelta(latest.peso,         prev.peso)
+  const musc  = calcDelta(latest.masaMuscular,  prev.masaMuscular)
+  const grasa = calcDelta(latest.grasaCorporal, prev.grasaCorporal)
+
+  // ── Composición corporal
+  if (peso != null) {
+    if (peso < -3)      items.push({ icon: 'trending_down', color: 'text-primary',  text: `Perdiste ${Math.abs(peso)} kg — bajada de peso significativa.` })
+    else if (peso < -0.5) items.push({ icon: 'trending_down', color: 'text-primary', text: `Leve descenso de ${Math.abs(peso)} kg de peso corporal.` })
+    else if (peso > 3)  items.push({ icon: 'trending_up',   color: 'text-amber-500', text: `Subiste ${peso} kg — aumento de peso significativo.` })
+    else if (peso > 0.5) items.push({ icon: 'trending_up',  color: 'text-amber-500', text: `Leve aumento de ${peso} kg de peso corporal.` })
+    else                items.push({ icon: 'horizontal_rule', color: 'text-text-secondary', text: `Peso estable (variación de ${Math.abs(peso)} kg).` })
   }
-  return dateStr
-}
 
-function formatImportDate(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function getMonthKey(dateStr) {
-  if (!dateStr) return ''
-  return dateStr.slice(0, 7)
-}
-
-function groupByMonth(measurements) {
-  const months = {}
-  for (const m of measurements) {
-    const mk = getMonthKey(m.date)
-    if (!mk) continue
-    if (!months[mk]) months[mk] = []
-    months[mk].push(m)
+  if (musc != null) {
+    if (musc > 1)       items.push({ icon: 'fitness_center', color: 'text-primary', text: `Excelente: ganaste ${musc} kg de masa muscular.` })
+    else if (musc > 0.3) items.push({ icon: 'fitness_center', color: 'text-primary', text: `Buen progreso: +${musc} kg de masa muscular.` })
+    else if (musc < -1) items.push({ icon: 'fitness_center', color: 'text-amber-500', text: `Perdiste ${Math.abs(musc)} kg de masa muscular — revisá proteína y carga de entrenamiento.` })
+    else if (musc < -0.3) items.push({ icon: 'fitness_center', color: 'text-amber-500', text: `Leve descenso de ${Math.abs(musc)} kg de masa muscular.` })
+    else if (musc != null) items.push({ icon: 'fitness_center', color: 'text-text-secondary', text: `Masa muscular estable.` })
   }
-  return Object.entries(months)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([monthKey, entries]) => {
-      const sorted = entries.sort((a, b) => b.date?.localeCompare(a.date))
-      return { monthKey, label: formatMonth(sorted[0].date), ...sorted[0] }
-    })
-}
 
-function delta(current, previous, decimals = 1) {
-  if (current == null || previous == null) return null
-  const diff = current - previous
-  return { value: diff.toFixed(decimals), positive: diff > 0 }
-}
-
-function formatDateShort(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') return '—'
-  const d = new Date(dateStr + 'T12:00:00')
-  if (isNaN(d.getTime())) return dateStr
-  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function getInsight(latest, previous) {
-  if (!latest || !previous) return null
-  const pesoD = previous.peso != null && latest.peso != null ? latest.peso - previous.peso : null
-  const cinturaD = previous.cintura != null && latest.cintura != null ? latest.cintura - previous.cintura : null
-  const grasaD = previous.grasa != null && latest.grasa != null ? latest.grasa - previous.grasa : null
-  const muscleD = (previous.muscleMassKg != null && latest.muscleMassKg != null) ? latest.muscleMassKg - previous.muscleMassKg : null
-  if (pesoD != null && pesoD < 0 && cinturaD != null && cinturaD < 0) return 'Bajaste de peso y de cintura. ¡Muy bien!'
-  if (pesoD != null && pesoD < 0) return 'Bajaste de peso respecto al mes anterior.'
-  if (muscleD != null && muscleD > 0) return 'Ganaste masa muscular. Seguí así.'
-  if (grasaD != null && grasaD < 0) return 'Tu porcentaje de grasa bajó. Buen progreso.'
-  if (cinturaD != null && cinturaD < 0) return 'Tu cintura bajó. ¡Bien!'
-  if (pesoD != null && pesoD > 0 && muscleD != null && muscleD > 0) return 'Subiste de peso y masa muscular.'
-  if (pesoD != null && pesoD > 0) return 'Subiste un poco de peso. Revisá alimentación y entrenamiento.'
-  return null
-}
-
-function getCompositionData(m) {
-  const bc = m?.bodyComposition
-  if (bc) {
-    const segments = COMPOSITION_NAMES.map(({ key, label }, i) => {
-      const val = bc[key]
-      return val != null ? { name: label, value: Math.round(val * 10) / 10, color: COMPOSITION_COLORS[i] } : null
-    }).filter(Boolean)
-    if (segments.length > 0) return segments
+  if (grasa != null) {
+    if (grasa < -2)     items.push({ icon: 'water_drop', color: 'text-primary', text: `Reducción notable de ${Math.abs(grasa)}% de grasa corporal.` })
+    else if (grasa < -0.5) items.push({ icon: 'water_drop', color: 'text-primary', text: `Bajaste ${Math.abs(grasa)}% de grasa — tendencia positiva.` })
+    else if (grasa > 2) items.push({ icon: 'water_drop', color: 'text-amber-500', text: `Aumento de ${grasa}% de grasa corporal — chequeá alimentación.` })
+    else if (grasa > 0.5) items.push({ icon: 'water_drop', color: 'text-amber-500', text: `Leve aumento de ${grasa}% de grasa corporal.` })
+    else if (grasa != null) items.push({ icon: 'water_drop', color: 'text-text-secondary', text: `Grasa corporal estable.` })
   }
-  if (m?.peso != null && m?.grasa != null) {
-    const grasaKg = (m.peso * m.grasa) / 100
-    return [
-      { name: 'Grasa', value: Math.round(grasaKg * 10) / 10, color: COMPOSITION_COLORS[0] },
-      { name: 'Resto', value: Math.round((m.peso - grasaKg) * 10) / 10, color: COMPOSITION_COLORS[1] },
-    ]
+
+  // ── Composición neta (combinación músculo + grasa)
+  if (musc != null && grasa != null) {
+    if (musc > 0.3 && grasa < -0.3)
+      items.push({ icon: 'star', color: 'text-primary', text: `Recomposición corporal positiva: más músculo y menos grasa. ¡Excelente trabajo!` })
+    else if (musc < -0.3 && grasa > 0.3)
+      items.push({ icon: 'warning', color: 'text-amber-500', text: `Tendencia negativa: menos músculo y más grasa. Revisá tu plan de entrenamiento y nutrición.` })
   }
-  return []
+
+  // ── Perímetros
+  const perimChanges = PERIM_OPTIONS
+    .map(p => ({ label: p.label, delta: calcDelta(p.field(latest), p.field(prev)), unit: 'cm' }))
+    .filter(p => p.delta != null && Math.abs(p.delta) >= 0.5)
+
+  if (perimChanges.length > 0) {
+    const up   = perimChanges.filter(p => p.delta > 0).map(p => `${p.label} +${p.delta} cm`)
+    const down = perimChanges.filter(p => p.delta < 0).map(p => `${p.label} ${p.delta} cm`)
+    if (up.length)   items.push({ icon: 'straighten', color: 'text-amber-500', text: `Perímetros que aumentaron: ${up.join(', ')}.` })
+    if (down.length) items.push({ icon: 'straighten', color: 'text-primary',   text: `Perímetros que bajaron: ${down.join(', ')}.` })
+  }
+
+  // ── Sin cambios relevantes
+  if (items.length === 0)
+    items.push({ icon: 'check_circle', color: 'text-text-secondary', text: 'Sin cambios significativos respecto a la medición anterior.' })
+
+  return items
 }
 
-const MAX_MONTHS_CHART = 12
+function DiagnosticPanel({ latest, prev }) {
+  const items = buildDiagnostic(latest, prev)
+  if (!items) return null
+
+  return (
+    <div>
+      <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-2">Resumen del período</p>
+      <Card className="p-3! rounded-xl!">
+        <p className="text-[9px] text-text-secondary/60 mb-2 flex items-center gap-1">
+          <span className="material-symbols-outlined text-xs">calendar_month</span>
+          {fmtLong(prev.date)} → {fmtLong(latest.date)}
+        </p>
+        <div className="space-y-2">
+          {items.map((item, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className={`material-symbols-outlined text-base shrink-0 mt-0.5 ${item.color}`}>{item.icon}</span>
+              <p className="text-xs text-text leading-snug">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function DeltaBadge({ value, unit, good }) {
+  if (value == null) return null
+  return (
+    <span className={`text-[10px] font-bold inline-flex items-center gap-0.5 ${good ? 'text-primary' : 'text-amber-600 dark:text-amber-400'}`}>
+      <span className="material-symbols-outlined text-xs leading-none">{value > 0 ? 'arrow_upward' : 'arrow_downward'}</span>
+      {value > 0 ? '+' : ''}{value} {unit}
+    </span>
+  )
+}
 
 export default function Anthropometry() {
-  const [measurements, setMeasurements] = useState([])
-  const [imports, setImports] = useState([])
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], label: '' })
-  const [importing, setImporting] = useState(false)
-  const [importPreview, setImportPreview] = useState(null)
-  const [evolutionTab, setEvolutionTab] = useState('peso')
-  const [technicalOpen, setTechnicalOpen] = useState(false)
+  const { user } = useAuth()
+  const isAdmin  = user?.username === 'admin'
+  const fileRef  = useRef(null)
 
-  useEffect(() => { loadData() }, [])
+  const [measurements, setMeasurements] = useState([])
+  const [chartMode, setChartMode]       = useState('peso')
+  const [selectedPerim, setSelectedPerim] = useState('')
+  const [importing, setImporting]       = useState(false)
+  const [importMsg, setImportMsg]       = useState(null)
+  const [allUsers, setAllUsers]         = useState([])
+  const [targetUserId, setTargetUserId] = useState(null)
+
+  useEffect(() => {
+    if (isAdmin) usersDB.getAll().then(u => setAllUsers(u.filter(x => x.username !== 'admin')))
+  }, [isAdmin])
+
+  useEffect(() => { loadData() }, [targetUserId]) // eslint-disable-line
 
   async function loadData() {
-    const [data, importList] = await Promise.all([
-      measurementsDB.getAll(),
-      importsDB.getAll(),
-    ])
-    setMeasurements(data.sort((a, b) => a.date?.localeCompare(b.date)))
-    setImports(importList.sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    if (isAdmin && !targetUserId) { setMeasurements([]); return }
+    const data = await measurementsDB.getAll(targetUserId || undefined)
+    setMeasurements(data.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')))
   }
+
+  const sorted = [...measurements]
+  const latest = sorted[sorted.length - 1] ?? null
+  const prev   = sorted.length >= 2 ? sorted[sorted.length - 2] : null
+  const perimsWithData = PERIM_OPTIONS.filter(p => sorted.some(m => p.field(m) != null))
+
+  useEffect(() => {
+    if (perimsWithData.length && !selectedPerim) setSelectedPerim(perimsWithData[0].key)
+  }, [perimsWithData.length]) // eslint-disable-line
+
+  const isPerimMode = PERIM_OPTIONS.some(p => p.key === chartMode)
+  const activeCfg = isPerimMode
+    ? (() => { const p = PERIM_OPTIONS.find(x => x.key === chartMode); return p ? { ...p, unit: 'cm', lowerBetter: true } : null })()
+    : CHART_TABS.find(t => t.key === chartMode) ?? CHART_TABS[0]
+
+  const chartData = activeCfg ? sorted.map(m => ({ label: fmtAxis(m.date), value: activeCfg.field(m) })).filter(d => d.value != null) : []
+  const chartCurr = latest && activeCfg ? activeCfg.field(latest) : null
+  const chartPrev = prev && activeCfg ? activeCfg.field(prev) : null
+  const chartDelta = calcDelta(chartCurr, chartPrev)
+  const chartGood = chartDelta != null && activeCfg ? (activeCfg.lowerBetter ? chartDelta < 0 : chartDelta > 0) : false
+
+  const perimCfg = PERIM_OPTIONS.find(p => p.key === selectedPerim)
+  const perimVal = latest && perimCfg ? perimCfg.field(latest) : null
+  const perimDelta = calcDelta(perimVal, prev && perimCfg ? perimCfg.field(prev) : null)
 
   async function handleImport(e) {
-    const file = e.target.files[0]
+    const file = e.target.files?.[0]
     if (!file) return
-    setImporting(true)
+    setImporting(true); setImportMsg(null)
     try {
       const parsed = await parseExcelFile(file)
-      if (parsed.length === 0) {
-        setImportPreview({ file: file.name, count: 0 })
-        return
-      }
-      for (const m of parsed) {
-        await measurementsDB.save({ ...m, id: generateId() })
-      }
-      await importsDB.save({
-        id: generateId(),
-        filename: file.name,
-        date: new Date().toISOString(),
-        count: parsed.length,
-      })
+      if (!parsed.length) { setImportMsg({ type: 'warning', text: 'No se encontraron mediciones válidas.' }); return }
+      const saveFor = targetUserId || undefined
+      for (const m of parsed) await measurementsDB.save({ ...m, id: generateId() }, saveFor)
       await loadData()
-      setImportPreview({ file: file.name, count: parsed.length, success: true })
+      const who = targetUserId ? (allUsers.find(u => u.id === targetUserId)?.nombre ?? 'el usuario') : 'tu historial'
+      setImportMsg({ type: 'success', text: `${parsed.length} medición${parsed.length !== 1 ? 'es' : ''} añadida${parsed.length !== 1 ? 's' : ''} a ${who}.` })
     } catch (err) {
-      console.error('Import error:', err)
-      setImportPreview({ file: file.name, count: 0, error: err.message })
-    } finally {
-      setImporting(false)
-      e.target.value = ''
-    }
+      console.error('[Anthropometry] Import error:', err)
+      setImportMsg({ type: 'error', text: `Error: ${err.message}` })
+    } finally { setImporting(false); e.target.value = '' }
   }
 
-  async function saveMeasurement() {
-    if (!form.date) return
-    await measurementsDB.save({
-      id: generateId(),
-      ...form,
-      label: form.label?.trim() || null,
-      peso: form.peso ? Number(form.peso) : null,
-      grasa: form.grasa ? Number(form.grasa) : null,
-      pecho: form.pecho ? Number(form.pecho) : null,
-      cintura: form.cintura ? Number(form.cintura) : null,
-      cadera: form.cadera ? Number(form.cadera) : null,
-      brazo: form.brazo ? Number(form.brazo) : null,
-      pierna: form.pierna ? Number(form.pierna) : null,
-    })
-    setForm({ date: new Date().toISOString().split('T')[0], label: '' })
-    setShowForm(false)
-    loadData()
-  }
+  function handlePerimSelect(key) { setSelectedPerim(key); setChartMode(key) }
 
-  async function deleteMeasurement(id) {
-    await measurementsDB.delete(id)
-    loadData()
-  }
-
-  const monthly = groupByMonth(measurements)
-  const monthlyLimited = monthly.slice(-MAX_MONTHS_CHART)
-  const latest = monthly[monthly.length - 1]
-  const previous = monthly.length >= 2 ? monthly[monthly.length - 2] : null
-  const first = monthly[0]
-  const latestRaw = measurements[measurements.length - 1]
-
-  const previousRaw = measurements.length >= 2 ? measurements[measurements.length - 2] : null
-  const weightDelta = latestRaw?.peso != null && previousRaw?.peso != null ? (latestRaw.peso - previousRaw.peso).toFixed(1) : null
-  const weightDeltaPct = latest?.peso != null && previous?.peso != null && previous.peso !== 0
-    ? (((latest.peso - previous.peso) / previous.peso) * 100).toFixed(1)
-    : null
-  const currentTab = EVOLUTION_TABS.find(t => t.key === evolutionTab) || EVOLUTION_TABS[0]
-  const evolutionData = monthlyLimited
-    .map(m => ({
-      month: m.label,
-      value: currentTab.dataKey === 'muscleMassKg'
-        ? (m.muscleMassKg ?? m.bodyComposition?.muscleMassKg)
-        : m[currentTab.dataKey],
-    }))
-    .filter(d => d.value != null)
-  const compositionData = getCompositionData(latestRaw)
-  const insight = getInsight(latestRaw, previousRaw)
+  const selectedUserName = targetUserId ? (allUsers.find(u => u.id === targetUserId)?.nombre ?? '—') : null
+  const showAdminEmpty = isAdmin && !targetUserId
 
   return (
     <div className="min-h-full">
       <Header title="Antropometría">
-        <div className="flex items-center gap-2 pr-1">
-          <label className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 text-primary cursor-pointer shadow-sm">
-            <span className="material-symbols-outlined text-lg">{importing ? 'hourglass_empty' : 'upload_file'}</span>
-            <input type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImport} className="hidden" />
+        {isAdmin && (
+          <label className={`w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition-all ${importing ? 'bg-primary/20 text-primary/50' : 'bg-primary text-white active:scale-95'}`} title="Importar Excel">
+            <span className={`material-symbols-outlined text-lg ${importing ? 'animate-spin' : ''}`}>{importing ? 'autorenew' : 'table_chart'}</span>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} className="hidden" disabled={importing} />
           </label>
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white shadow-sm"
-          >
-            <span className="material-symbols-outlined text-lg">add</span>
-          </button>
-        </div>
+        )}
       </Header>
 
-      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-5">
-        {importPreview && (
-          <div className={`rounded-2xl p-4 flex items-start gap-3 ${
-            importPreview.success ? 'bg-green-50 border border-green-200' : importPreview.error ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'
-          }`}>
-            <span className={`material-symbols-outlined text-lg mt-0.5 ${importPreview.success ? 'text-green-600' : importPreview.error ? 'text-red-500' : 'text-amber-600'}`}>
-              {importPreview.success ? 'check_circle' : importPreview.error ? 'error' : 'warning'}
-            </span>
-            <div className="flex-1">
-              <p className="text-sm font-semibold">
-                {importPreview.success ? `Se importaron ${importPreview.count} mediciones` : importPreview.error ? `Error: ${importPreview.error}` : 'No se encontraron mediciones'}
-              </p>
+      <div className="pb-28 px-4 pt-3 space-y-3">
+
+        {/* Admin user selector */}
+        {isAdmin && allUsers.length > 0 && (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/8 border border-primary/20">
+            <span className="material-symbols-outlined text-primary text-base shrink-0">manage_accounts</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-0.5">Viendo datos de</p>
+              <select value={targetUserId ?? ''} onChange={e => setTargetUserId(e.target.value || null)} className="w-full bg-transparent text-text text-xs font-semibold focus:outline-none cursor-pointer">
+                <option value="">— Seleccioná un usuario —</option>
+                {allUsers.map(u => <option key={u.id} value={u.id}>{u.nombre ? `${u.nombre}${u.apellido ? ' ' + u.apellido : ''}` : u.username}</option>)}
+              </select>
             </div>
-            <button onClick={() => setImportPreview(null)} className="p-0.5 text-gray-400 hover:text-gray-600">
-              <span className="material-symbols-outlined text-sm">close</span>
-            </button>
+            {selectedUserName && <button onClick={() => setTargetUserId(null)} className="text-text-secondary shrink-0"><span className="material-symbols-outlined text-sm">close</span></button>}
           </div>
         )}
 
-        {/* 1. Arriba: Peso actual + cambio vs anterior + fecha */}
-        <div className="pt-6 pb-4">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-4xl font-bold text-text">
-              {latestRaw?.peso != null ? latestRaw.peso.toFixed(1) : '—'}
-            </span>
-            <span className="text-xl text-text-secondary font-medium">kg</span>
-            {weightDelta != null && (
-              <span className={`text-base font-semibold ${Number(weightDelta) <= 0 ? 'text-primary' : 'text-amber-600'}`}>
-                {Number(weightDelta) > 0 ? '+' : ''}{weightDelta} kg vs anterior
-              </span>
-            )}
+        {/* Import feedback */}
+        {importMsg && (
+          <div className={`flex items-start gap-3 p-4 rounded-2xl border ${importMsg.type === 'success' ? 'bg-primary/10 border-primary/20' : importMsg.type === 'error' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'}`}>
+            <span className={`material-symbols-outlined text-lg mt-0.5 shrink-0 ${importMsg.type === 'success' ? 'text-primary' : importMsg.type === 'error' ? 'text-red-500' : 'text-amber-600'}`}>{importMsg.type === 'success' ? 'check_circle' : importMsg.type === 'error' ? 'error' : 'warning'}</span>
+            <p className="flex-1 text-sm font-medium text-text">{importMsg.text}</p>
+            <button onClick={() => setImportMsg(null)} className="text-text-secondary shrink-0"><span className="material-symbols-outlined text-base">close</span></button>
           </div>
-          <p className="text-sm text-text-secondary mt-1">
-            Última medición: {formatDateShort(latestRaw?.date)}
-          </p>
-        </div>
+        )}
 
-        {/* 2. Cards: Masa grasa, Masa muscular, Cintura */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-6">
-          <Card className="p-4">
-            <p className="text-sm text-text-secondary mb-0.5">Masa grasa</p>
-            <p className="text-2xl font-bold text-text">
-              {latestRaw?.bodyComposition?.fatMassPct != null ? `${latestRaw.bodyComposition.fatMassPct.toFixed(1)}%` : latestRaw?.grasa != null ? `${latestRaw.grasa}%` : '—'}
-            </p>
-            {previousRaw && (latestRaw?.grasa != null && previousRaw?.grasa != null) && (
-              <p className="text-sm text-primary font-medium mt-1">
-                {(latestRaw.grasa - previousRaw.grasa) >= 0 ? '+' : ''}{(latestRaw.grasa - previousRaw.grasa).toFixed(1)}% vs anterior
+        {/* Admin: no user selected — show empty prompt */}
+        {showAdminEmpty && (
+          <div className="text-center py-16">
+            <span className="material-symbols-outlined text-5xl block mb-3 text-primary/25">person_search</span>
+            <p className="text-base font-semibold text-text">Seleccioná un usuario</p>
+            <p className="text-sm text-text-secondary mt-1">Elegí un usuario del selector para ver o cargar sus mediciones.</p>
+          </div>
+        )}
+
+        {/* Full UI — always visible (even without data) unless admin has no user selected */}
+        {!showAdminEmpty && (
+          <>
+            {sorted.length > 0 && (
+              <p className="text-xs text-text-secondary">
+                {selectedUserName ? <strong>{selectedUserName} · </strong> : null}
+                Última medición: <strong>{fmtLong(latest?.date)}</strong> · {sorted.length} {sorted.length === 1 ? 'registro' : 'registros'}
               </p>
             )}
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-text-secondary mb-0.5">Masa muscular</p>
-            <p className="text-2xl font-bold text-text">
-              {latestRaw?.bodyComposition?.muscleMassKg != null ? `${latestRaw.bodyComposition.muscleMassKg.toFixed(1)} kg` : latestRaw?.muscleMassKg != null ? `${latestRaw.muscleMassKg.toFixed(1)} kg` : '—'}
-            </p>
-            {previousRaw && (latestRaw?.muscleMassKg != null || latestRaw?.bodyComposition?.muscleMassKg != null) && (previousRaw?.muscleMassKg != null || previousRaw?.bodyComposition?.muscleMassKg != null) && (
-              <p className="text-sm text-primary font-medium mt-1">
-                {((latestRaw?.bodyComposition?.muscleMassKg ?? latestRaw?.muscleMassKg) - (previousRaw?.bodyComposition?.muscleMassKg ?? previousRaw?.muscleMassKg)) >= 0 ? '+' : ''}{((latestRaw?.bodyComposition?.muscleMassKg ?? latestRaw?.muscleMassKg) - (previousRaw?.bodyComposition?.muscleMassKg ?? previousRaw?.muscleMassKg)).toFixed(1)} kg vs anterior
-              </p>
-            )}
-          </Card>
-          <Card className="p-4">
-            <p className="text-sm text-text-secondary mb-0.5">Cintura</p>
-            <p className="text-2xl font-bold text-text">
-              {(latestRaw?.cintura ?? latestRaw?.perimeters?.waistMinCm) != null ? `${(latestRaw?.cintura ?? latestRaw?.perimeters?.waistMinCm)} cm` : '—'}
-            </p>
-            {previousRaw && (() => {
-              const curr = latestRaw?.cintura ?? latestRaw?.perimeters?.waistMinCm
-              const prev = previousRaw?.cintura ?? previousRaw?.perimeters?.waistMinCm
-              if (curr == null || prev == null) return null
-              const d = (curr - prev).toFixed(1)
-              return <p className="text-sm text-primary font-medium mt-1">{(curr - prev) >= 0 ? '+' : ''}{d} cm vs anterior</p>
-            })()}
-          </Card>
-        </div>
 
-        {/* Insight automático */}
-        {insight && (
-          <div className="rounded-2xl bg-primary/10 border border-primary/20 p-4 mb-6">
-            <p className="text-base font-medium text-text">{insight}</p>
-          </div>
-        )}
-
-        {/* 3. Composición actual: 5 masas */}
-        {compositionData.length > 0 && (
-          <div className="pb-6">
-            <h3 className="text-lg font-bold text-text mb-3">Composición corporal actual</h3>
-            <Card className="p-4">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={compositionData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {compositionData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v) => [`${v} kg`, '']} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
-        )}
-
-        {/* 4. Tabs: Evolución temporal */}
-        <div className="pb-6">
-          <h3 className="text-lg font-bold text-text mb-3">Evolución en el tiempo</h3>
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-            {EVOLUTION_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setEvolutionTab(tab.key)}
-                className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${evolutionTab === tab.key ? 'bg-primary text-white' : 'bg-gray-100 text-text-secondary'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          {evolutionData.length >= 2 && (
-            <Card className="p-4">
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={evolutionData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="evolutionFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} />
-                  <YAxis hide domain={['auto', 'auto']} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', fontSize: '13px' }}
-                    formatter={(v) => [`${Number(v).toFixed(1)} ${currentTab.unit}`, currentTab.label]}
-                  />
-                  <Area type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} fill="url(#evolutionFill)" dot={{ r: 4, fill: 'var(--color-primary)' }} activeDot={{ r: 6 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-        </div>
-
-        {/* 5. Medidas importantes */}
-        {latestRaw && MEDIDAS_IMPORTANTES.some(f => latestRaw[f.key] != null || latestRaw.perimeters?.[f.perimeterKey] != null) && (
-          <div className="pb-6">
-            <h3 className="text-lg font-bold text-text mb-3">Medidas importantes</h3>
-            <div className="space-y-2">
-              {MEDIDAS_IMPORTANTES.map((f) => {
-                const val = latestRaw[f.key] ?? latestRaw.perimeters?.[f.perimeterKey]
-                if (val == null) return null
+            {/* ── 4 stat cards (2×2) ── */}
+            <div className="grid grid-cols-2 gap-2">
+              {COMP_CARDS.map(card => {
+                const val = latest ? card.field(latest) : null
+                const dd  = calcDelta(val, prev ? card.field(prev) : null)
+                const good = dd != null ? (card.lowerBetter ? dd < 0 : dd > 0) : false
                 return (
-                  <div key={f.key} className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-xl">
-                    <span className="font-medium text-text">{f.label}</span>
-                    <span className="text-lg font-bold text-primary">{val} cm</span>
-                  </div>
+                  <Card key={card.key} className="p-2.5! rounded-xl!">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="material-symbols-outlined text-xs text-text-secondary/50">{card.icon}</span>
+                      <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider">{card.label}</p>
+                    </div>
+                    <div className="flex items-baseline gap-0.5">
+                      <span className={`text-lg font-bold tabular-nums leading-none ${val != null ? 'text-text' : 'text-text-secondary/25'}`}>{val != null ? Number(val).toFixed(1) : '—'}</span>
+                      <span className="text-[9px] text-text-secondary">{card.unit}</span>
+                    </div>
+                    {dd != null && <div className="mt-0.5"><DeltaBadge value={dd} unit={card.unit} good={good} /></div>}
+                  </Card>
                 )
               })}
-            </div>
-          </div>
-        )}
 
-        {/* 6. Detalle técnico colapsable */}
-        <div className="pb-6">
-          <button
-            onClick={() => setTechnicalOpen(!technicalOpen)}
-            className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-gray-200 text-text-secondary font-medium"
-          >
-            <span>Detalle técnico (pliegues, perímetros, etc.)</span>
-            <span className="material-symbols-outlined text-lg">{technicalOpen ? 'expand_less' : 'expand_more'}</span>
-          </button>
-          {technicalOpen && latestRaw && (
-            <div className="mt-2 rounded-xl border border-gray-200 overflow-hidden">
-              {DETAIL_GROUPS.map((g) => (
-                <div key={g.title} className="p-4 border-b border-gray-100 last:border-0">
-                  <p className="text-sm font-semibold text-text-secondary mb-2">{g.title}</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    {g.keys.map((key, i) => {
-                      const val = latestRaw[g.source]?.[key]
-                      if (val == null) return null
-                      return (
-                        <div key={key} className="flex justify-between">
-                          <span className="text-text-secondary">{g.labels[i] ?? key}</span>
-                          <span className="font-medium text-text">{val}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+              {/* Perímetros card */}
+              <Card className="p-2.5! rounded-xl!">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="material-symbols-outlined text-xs text-text-secondary/50">straighten</span>
+                  <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider">Perímetros</p>
                 </div>
-              ))}
-              {(latestRaw?.peso != null || latestRaw?.pecho != null) && (
-                <div className="p-4 border-b border-gray-100 last:border-0">
-                  <p className="text-sm font-semibold text-text-secondary mb-2">Básicos</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    {latestRaw.peso != null && <><div className="text-text-secondary">Peso</div><div className="font-medium text-text">{latestRaw.peso} kg</div></>}
-                    {latestRaw.grasa != null && <><div className="text-text-secondary">Grasa %</div><div className="font-medium text-text">{latestRaw.grasa}%</div></>}
-                    {latestRaw.pecho != null && <><div className="text-text-secondary">Pecho</div><div className="font-medium text-text">{latestRaw.pecho} cm</div></>}
-                    {latestRaw.brazo != null && <><div className="text-text-secondary">Brazo</div><div className="font-medium text-text">{latestRaw.brazo} cm</div></>}
-                    {latestRaw.pierna != null && <><div className="text-text-secondary">Pierna</div><div className="font-medium text-text">{latestRaw.pierna} cm</div></>}
-                  </div>
-                </div>
+                {perimsWithData.length > 0 ? (
+                  <>
+                    <select
+                      value={selectedPerim}
+                      onChange={e => handlePerimSelect(e.target.value)}
+                      className="w-full bg-transparent text-text text-[11px] font-semibold focus:outline-none cursor-pointer mb-1"
+                    >
+                      {perimsWithData.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                    </select>
+                    <div className="flex items-baseline gap-0.5">
+                      <span className={`text-lg font-bold tabular-nums leading-none ${perimVal != null ? 'text-text' : 'text-text-secondary/25'}`}>{perimVal != null ? Number(perimVal).toFixed(1) : '—'}</span>
+                      <span className="text-[9px] text-text-secondary">cm</span>
+                    </div>
+                    {perimDelta != null && <div className="mt-0.5"><DeltaBadge value={perimDelta} unit="cm" good={perimDelta < 0} /></div>}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg font-bold tabular-nums leading-none text-text-secondary/25">—</span>
+                    <span className="text-[9px] text-text-secondary ml-0.5">cm</span>
+                  </>
+                )}
+              </Card>
+            </div>
+
+            {/* ── Chart tabs ── */}
+            <div className="flex gap-1 overflow-x-auto scrollbar-none">
+              {CHART_TABS.map(t => {
+                const has = sorted.some(m => t.field(m) != null)
+                return (
+                  <button
+                    key={t.key} disabled={!has}
+                    onClick={() => has && setChartMode(t.key)}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                      chartMode === t.key ? 'bg-primary text-white' : has ? 'bg-surface text-text-secondary' : 'bg-surface/50 text-text-secondary/30 cursor-not-allowed'
+                    }`}
+                  >{t.label}</button>
+                )
+              })}
+              {perimsWithData.length > 0 && (
+                <select
+                  value={isPerimMode ? chartMode : ''}
+                  onChange={e => { if (e.target.value) { setChartMode(e.target.value); setSelectedPerim(e.target.value) } }}
+                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer focus:outline-none transition-all appearance-none ${
+                    isPerimMode ? 'bg-primary text-white' : 'bg-surface text-text-secondary'
+                  }`}
+                  style={{ paddingRight: '1.4rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='${isPerimMode ? 'white' : '%239ca3af'}'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.3rem center', backgroundSize: '0.8rem' }}
+                >
+                  {!isPerimMode && <option value="">Perímetro…</option>}
+                  {perimsWithData.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                </select>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Historial de archivos subidos */}
-        {imports.length > 0 && (
-          <div className="pb-6">
-            <h3 className="text-lg font-bold text-text mb-3">Archivos subidos</h3>
-            <div className="space-y-2">
-              {imports.map((imp) => (
-                <Card key={imp.id} className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-text truncate">{imp.filename}</p>
-                      <p className="text-sm text-text-secondary">{formatImportDate(imp.date)} · {imp.count} mediciones</p>
+            {/* ── Main chart ── */}
+            {activeCfg && (
+              chartData.length >= 2 ? (
+                <Card className="p-3! pt-3! rounded-xl!">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider">{activeCfg.label}</p>
+                      <div className="flex items-baseline gap-1 mt-0.5">
+                        <span className="text-2xl font-bold text-text tabular-nums leading-none">{chartCurr != null ? Number(chartCurr).toFixed(1) : '—'}</span>
+                        <span className="text-xs text-text-secondary">{activeCfg.unit}</span>
+                      </div>
                     </div>
-                    <span className="material-symbols-outlined text-primary shrink-0">description</span>
+                    {chartDelta != null && <DeltaBadge value={chartDelta} unit={activeCfg.unit} good={chartGood} />}
+                  </div>
+                  <div style={{ width: '100%', height: 150 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                        <defs><linearGradient id="aFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.3} /><stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} /></linearGradient></defs>
+                        <CartesianGrid vertical={false} stroke="var(--color-border)" strokeOpacity={0.5} />
+                        <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} interval="preserveStartEnd" padding={{ left: 6, right: 6 }} />
+                        <YAxis tick={{ fontSize: 9, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} domain={['auto','auto']} tickCount={4} width={40} />
+                        <Tooltip content={props => <ChartTooltip {...props} unit={activeCfg.unit} />} />
+                        <Area type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} fill="url(#aFill)" dot={{ r: 3, fill: 'var(--color-primary)', strokeWidth: 0 }} activeDot={{ r: 5, fill: 'var(--color-primary)', strokeWidth: 0 }} isAnimationActive={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {measurements.length === 0 && !imports.length && (
-          <div className="text-center py-14 text-text-secondary">
-            <span className="material-symbols-outlined text-5xl mb-3 block">monitoring</span>
-            <p className="text-lg font-medium text-text">Sin mediciones aún</p>
-            <p className="text-sm mt-1">Importá un archivo o cargá una medición manual para ver tu progreso.</p>
-          </div>
-        )}
-
-        {measurements.length > 0 && (
-          <div className="pb-6">
-            <h3 className="text-lg font-bold text-text mb-3">Tus registros</h3>
-            <div className="space-y-2">
-              {[...measurements].reverse().map((m) => (
-                <Card key={m.id} className="p-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-text">{m.label || formatDateShort(m.date)}</p>
-                    <p className="text-sm text-text-secondary">{formatDateShort(m.date)}</p>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-text-secondary">
-                    {m.peso != null && <span><strong>{m.peso}</strong> kg</span>}
-                    {m.cintura != null && <span>{m.cintura} cm cintura</span>}
-                    <button onClick={() => deleteMeasurement(m.id)} className="p-1 text-gray-400 hover:text-red-500" aria-label="Eliminar">
-                      <span className="material-symbols-outlined text-lg">delete</span>
-                    </button>
-                  </div>
+              ) : (
+                <Card className="p-4! rounded-xl! text-center">
+                  <span className="material-symbols-outlined text-2xl text-text-secondary/30 block mb-1">show_chart</span>
+                  <p className="text-xs text-text-secondary">
+                    {chartData.length === 1
+                      ? `Solo 1 registro de ${activeCfg.label}. Importá otro Excel para ver el gráfico.`
+                      : `Aún no hay datos de ${activeCfg.label}.`}
+                  </p>
                 </Card>
-              ))}
-            </div>
-          </div>
+              )
+            )}
+
+            {/* ── Diagnostic ── */}
+            {sorted.length >= 2 && <DiagnosticPanel latest={latest} prev={prev} />}
+
+            {/* ── History ── */}
+            {sorted.length > 0 && (
+              <div>
+                <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-2">Historial</p>
+                <div className="space-y-1.5">
+                  {[...sorted].reverse().map(m => (
+                    <Card key={m.id} className="p-2.5! rounded-xl!">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-text text-xs">{fmtLong(m.date)}</p>
+                          <p className="text-[9px] text-text-secondary mt-0.5 flex flex-wrap gap-x-2">
+                            {m.peso != null && <span><strong>{m.peso}</strong> kg</span>}
+                            {m.grasaCorporal != null && <span>{m.grasaCorporal}% grasa</span>}
+                            {m.masaMuscular != null && <span>{m.masaMuscular} kg musc.</span>}
+                            {m.cintura != null && <span>{m.cintura} cm cintura</span>}
+                          </p>
+                        </div>
+                        {isAdmin && <button onClick={() => measurementsDB.delete(m.id).then(loadData)} className="p-0.5 text-text-secondary hover:text-red-500 transition-colors shrink-0"><span className="material-symbols-outlined text-sm">delete</span></button>}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
-
-      {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-          <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-text">Nueva Medición</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 text-text-secondary">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-text-secondary">Nombre del informe</label>
-                <input
-                  type="text"
-                  value={form.label || ''}
-                  onChange={e => setForm({ ...form, label: e.target.value })}
-                  placeholder="Ej: Evaluación inicial, Semana 4..."
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-text-secondary">Fecha</label>
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={e => setForm({ ...form, date: e.target.value })}
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:border-primary"
-                />
-              </div>
-              {FIELDS.map(f => (
-                <div key={f.key}>
-                  <label className="text-xs font-semibold text-text-secondary">{f.label}</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    placeholder="0"
-                    value={form[f.key] || ''}
-                    onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:border-primary"
-                  />
-                </div>
-              ))}
-            </div>
-            <button onClick={saveMeasurement} className="w-full py-3 bg-primary text-white text-sm font-semibold rounded-xl mt-5">
-              Guardar
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

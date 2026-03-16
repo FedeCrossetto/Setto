@@ -2,6 +2,12 @@ import { exerciseCacheDB } from './db'
 
 const BASE_URL = 'https://exercisedb-api.vercel.app/api/v1'
 
+function mapExercise(ex) {
+  if (!ex) return ex
+  const { gifUrl, ...rest } = ex
+  return { ...rest, imageUrl: gifUrl || '' }
+}
+
 async function fetchAPI(path, params = {}) {
   const url = new URL(`${BASE_URL}${path}`)
   Object.entries(params).forEach(([k, v]) => {
@@ -25,46 +31,39 @@ async function fetchAPI(path, params = {}) {
 
 export async function searchExercises(query, { offset = 0, limit = 25, threshold = 0.3 } = {}) {
   const json = await fetchAPI('/exercises/search', { q: query, offset, limit, threshold })
-  return { exercises: json.data || [], metadata: json.metadata }
+  return { exercises: (json.data || []).map(mapExercise), metadata: json.metadata }
 }
 
 export async function getExercises({ offset = 0, limit = 25, search, sortBy = 'name', sortOrder = 'asc' } = {}) {
   const json = await fetchAPI('/exercises', { offset, limit, search, sortBy, sortOrder })
-  return { exercises: json.data || [], metadata: json.metadata }
+  return { exercises: (json.data || []).map(mapExercise), metadata: json.metadata }
 }
 
 export async function filterExercises({ muscles, equipment, bodyParts, search, offset = 0, limit = 25 } = {}) {
   const json = await fetchAPI('/exercises/filter', {
-    muscles,
-    equipment,
-    bodyParts,
-    search,
-    offset,
-    limit,
-    sortBy: 'name',
-    sortOrder: 'asc',
+    muscles, equipment, bodyParts, search, offset, limit, sortBy: 'name', sortOrder: 'asc',
   })
-  return { exercises: json.data || [], metadata: json.metadata }
+  return { exercises: (json.data || []).map(mapExercise), metadata: json.metadata }
 }
 
 export async function getExerciseById(exerciseId) {
   const json = await fetchAPI(`/exercises/${exerciseId}`)
-  return json.data || null
+  return json.data ? mapExercise(json.data) : null
 }
 
 export async function getExercisesByMuscle(muscleName, { offset = 0, limit = 25 } = {}) {
   const json = await fetchAPI(`/muscles/${encodeURIComponent(muscleName)}/exercises`, { offset, limit })
-  return { exercises: json.data || [], metadata: json.metadata }
+  return { exercises: (json.data || []).map(mapExercise), metadata: json.metadata }
 }
 
 export async function getExercisesByBodyPart(bodyPartName, { offset = 0, limit = 25 } = {}) {
   const json = await fetchAPI(`/bodyparts/${encodeURIComponent(bodyPartName)}/exercises`, { offset, limit })
-  return { exercises: json.data || [], metadata: json.metadata }
+  return { exercises: (json.data || []).map(mapExercise), metadata: json.metadata }
 }
 
 export async function getExercisesByEquipment(equipmentName, { offset = 0, limit = 25 } = {}) {
   const json = await fetchAPI(`/equipments/${encodeURIComponent(equipmentName)}/exercises`, { offset, limit })
-  return { exercises: json.data || [], metadata: json.metadata }
+  return { exercises: (json.data || []).map(mapExercise), metadata: json.metadata }
 }
 
 export async function getMuscles() {

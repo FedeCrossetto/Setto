@@ -19,11 +19,11 @@ export default function Header({
         ${className}
       `}
     >
-      <div className="flex items-center justify-between gap-3 min-h-[56px] px-5 py-3">
+      <div className="flex items-center justify-between gap-3 min-h-[48px] px-4 py-2">
         {isHome ? (
           <>
             {/* Avatar (luego vendrá de BD) */}
-            <div className="w-10 h-10 rounded-full border-2 border-primary bg-card overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-full border-2 border-primary bg-card overflow-hidden shrink-0 flex items-center justify-center">
               {avatar ? (
                 <img src={avatar} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -46,7 +46,7 @@ export default function Header({
           </>
         ) : (
           <>
-            <h1 className="text-xl font-bold text-text truncate min-w-0 flex-1">
+            <h1 className="text-lg font-bold text-text truncate min-w-0 flex-1">
               {title}
             </h1>
             <div className="flex items-center gap-2 shrink-0">

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Card from '../components/ui/Card'
 import ExerciseDetail from '../components/ExerciseDetail'
 import { sessionsDB } from '../lib/db'
+import { getDisplayName } from '../lib/exerciseSearch'
 import { useActiveSession } from '../contexts/ActiveSessionContext'
 
 function formatTime(seconds) {
@@ -178,13 +179,13 @@ export default function WorkoutSession() {
               <div className="flex items-center gap-2.5 mb-3">
                 {/* GIF or placeholder */}
                 <button
-                  onClick={() => ex.exerciseId && setShowDetail({ exerciseId: ex.exerciseId, name: ex.name, gifUrl: ex.gifUrl })}
+                  onClick={() => ex.exerciseId && setShowDetail({ exerciseId: ex.exerciseId, name: getDisplayName(ex.exerciseId) || ex.name, imageUrl: ex.imageUrl })}
                   className="shrink-0"
                 >
-                  {ex.gifUrl ? (
+                  {ex.imageUrl ? (
                     <img
-                      src={ex.gifUrl}
-                      alt={ex.name}
+                      src={ex.imageUrl}
+                      alt={getDisplayName(ex.exerciseId) || ex.name}
                       className="w-12 h-12 rounded-xl object-cover bg-track"
                       loading="lazy"
                     />
@@ -201,7 +202,7 @@ export default function WorkoutSession() {
                       <span className="material-symbols-outlined text-primary text-sm filled">check_circle</span>
                     )}
                     <h3 className={`font-bold text-sm truncate ${allDone ? 'text-text-secondary' : 'text-text'}`}>
-                      {ex.name}
+                      {getDisplayName(ex.exerciseId) || ex.name}
                     </h3>
                   </div>
                   {ex.targetMuscles?.length > 0 && (
@@ -214,7 +215,7 @@ export default function WorkoutSession() {
                 <div className="flex items-center gap-1 shrink-0">
                   {!session.completed && ex.exerciseId && (
                     <button
-                      onClick={() => setShowDetail({ exerciseId: ex.exerciseId, name: ex.name, gifUrl: ex.gifUrl })}
+                      onClick={() => setShowDetail({ exerciseId: ex.exerciseId, name: getDisplayName(ex.exerciseId) || ex.name, imageUrl: ex.imageUrl })}
                       className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-track transition-colors"
                     >
                       <span className="material-symbols-outlined text-text-secondary text-base">info</span>
