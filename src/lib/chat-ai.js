@@ -6,7 +6,7 @@ const DEFAULT_CALORIES = mealsData.dailyGoal.calories
 
 let _ctxCache = null
 let _ctxCachedAt = 0
-const CTX_TTL_MS = 30_000
+const CTX_TTL_MS = 300_000
 
 async function getUserContext() {
   if (_ctxCache && Date.now() - _ctxCachedAt < CTX_TTL_MS) return _ctxCache

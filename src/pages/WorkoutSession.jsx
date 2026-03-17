@@ -35,6 +35,20 @@ export default function WorkoutSession() {
     })
   }, [id])
 
+  // Flush pending debounced save before tab/app closes
+  useEffect(() => {
+    const flush = () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+        // session ref needed — read latest via functional update trick
+        setSession(s => { if (s) sessionsDB.save(s); return s })
+      }
+    }
+    window.addEventListener('beforeunload', flush)
+    return () => window.removeEventListener('beforeunload', flush)
+  }, [])
+
   if (!session) {
     return (
       <div className="flex items-center justify-center h-full">

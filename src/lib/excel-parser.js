@@ -1,4 +1,8 @@
-import * as XLSX from 'xlsx'
+let _XLSX = null
+async function getXLSX() {
+  if (!_XLSX) _XLSX = await import('xlsx')
+  return _XLSX
+}
 
 // ─── Label definitions (most specific first) ─────────────────
 
@@ -320,8 +324,9 @@ function parseTabular(json) {
 export function parseExcelFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const XLSX = await getXLSX()
         const data = new Uint8Array(e.target.result)
         const workbook = XLSX.read(data, { type: 'array', cellDates: true })
         const sheet = selectSheet(workbook)
