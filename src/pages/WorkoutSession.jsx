@@ -177,7 +177,7 @@ export default function WorkoutSession() {
 
           return (
             <Card
-              key={exIdx}
+              key={`${session.id}:${exIdx}`}
               className={`transition-all ${allDone ? 'opacity-80' : ''}`}
             >
               {/* Exercise header */}
@@ -251,7 +251,7 @@ export default function WorkoutSession() {
               <div className="space-y-1.5">
                 {ex.sets.map((set, setIdx) => (
                   <div
-                    key={setIdx}
+                    key={`${session.id}:${exIdx}:${setIdx}`}
                     className={`grid gap-1.5 items-center px-0.5 py-1 rounded-xl transition-colors ${
                       set.completed ? 'bg-primary/8' : 'bg-bg'
                     } ${session.completed ? 'grid-cols-[32px_1fr_1fr_32px]' : 'grid-cols-[32px_1fr_1fr_32px_24px]'}`}

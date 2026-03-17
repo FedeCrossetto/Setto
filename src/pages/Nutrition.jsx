@@ -5,6 +5,7 @@ import ProgressBar from '../components/ui/ProgressBar'
 import { mealsDB, generateId } from '../lib/db'
 import { todayStr } from '../lib/storage'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import mealsData from '../data/meals.json'
 
 const MEAL_TYPES = [
@@ -15,6 +16,7 @@ const MEAL_TYPES = [
 ]
 
 export default function Nutrition() {
+  const { user } = useAuth()
   const [meals, setMeals] = useState([])
   const [showAdd, setShowAdd] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -55,7 +57,12 @@ export default function Nutrition() {
     loadData()
   }
 
-  const goals = mealsData.dailyGoal
+  const goals = {
+    calories: user?.metaCalorias  || mealsData.dailyGoal.calories,
+    protein:  user?.metaProteinas || mealsData.dailyGoal.protein,
+    carbs:    user?.metaCarbos    || mealsData.dailyGoal.carbs,
+    fat:      user?.metaGrasas    || mealsData.dailyGoal.fat,
+  }
 
   async function addMeal() {
     if (!form.name.trim()) return

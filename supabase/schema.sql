@@ -390,9 +390,30 @@ ALTER TABLE mediciones ADD COLUMN IF NOT EXISTS antebrazo   NUMERIC(5,1);
 ALTER TABLE mediciones ADD COLUMN IF NOT EXISTS cabeza      NUMERIC(5,1);
 ALTER TABLE comidas    ADD COLUMN IF NOT EXISTS completada  BOOLEAN NOT NULL DEFAULT TRUE;
 
--- Renombrar gif_url → image_url en tablas de ejercicios
-ALTER TABLE rutina_ejercicios  RENAME COLUMN gif_url TO image_url;
-ALTER TABLE sesion_ejercicios  RENAME COLUMN gif_url TO image_url;
+-- Metas nutricionales por usuario (nullable = usar defaults de la app)
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS meta_calorias   INTEGER;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS meta_proteinas  INTEGER;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS meta_carbos     INTEGER;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS meta_grasas     INTEGER;
+
+-- Renombrar gif_url → image_url en tablas de ejercicios (idempotente)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='rutina_ejercicios' AND column_name='gif_url') THEN
+    ALTER TABLE rutina_ejercicios RENAME COLUMN gif_url TO image_url;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sesion_ejercicios' AND column_name='gif_url') THEN
+    ALTER TABLE sesion_ejercicios RENAME COLUMN gif_url TO image_url;
+  END IF;
+END $$;
+
+-- ──────────────────────────────────────────────────────────
+--  STORAGE — Fotos de progreso
+--  Crear en Supabase Dashboard → Storage → New bucket:
+--    Nombre: fotos-progreso | Public: true
+--  O via CLI: supabase storage create fotos-progreso --public
+-- ──────────────────────────────────────────────────────────
 
 -- Agregar image_url a rutinas (banner de portada)
 ALTER TABLE rutinas ADD COLUMN IF NOT EXISTS image_url TEXT;

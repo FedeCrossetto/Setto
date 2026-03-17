@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Card from '../components/ui/Card'
-import { photosDB, generateId } from '../lib/db'
-import { fileToBlob, getPhotoURL, formatDate, getWeekNumber, todayStr } from '../lib/storage'
+import { photosDB } from '../lib/db'
+import { savePhoto, deletePhotoFromStorage, formatDate, getWeekNumber, todayStr } from '../lib/storage'
 
 export default function Progress() {
   const [photos, setPhotos] = useState([])
-  const [photoURLs, setPhotoURLs] = useState({})
   const [compareMode, setCompareMode] = useState(false)
   const [selected, setSelected] = useState([])
   const [viewPhoto, setViewPhoto] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -18,36 +18,29 @@ export default function Progress() {
 
   async function loadPhotos() {
     const all = await photosDB.getAll()
-    const sorted = all.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-    setPhotos(sorted)
-
-    const urls = {}
-    for (const p of sorted) {
-      if (p.blob) {
-        urls[p.id] = await getPhotoURL(p)
-      }
-    }
-    setPhotoURLs(urls)
+    setPhotos(all.sort((a, b) => (b.date || '').localeCompare(a.date || '')))
   }
 
   async function handleUpload(e) {
     const files = Array.from(e.target.files)
-    for (const file of files) {
-      const blob = await fileToBlob(file)
-      await photosDB.save({
-        id: generateId(),
-        blob,
-        date: todayStr(),
-        timestamp: Date.now(),
-        note: '',
-      })
+    if (!files.length) return
+    setUploading(true)
+    try {
+      for (const file of files) {
+        await savePhoto(file)
+      }
+    } catch (err) {
+      console.error('Error subiendo foto:', err)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+      loadPhotos()
     }
-    e.target.value = ''
-    loadPhotos()
   }
 
   async function deletePhoto(id) {
-    if (photoURLs[id]) URL.revokeObjectURL(photoURLs[id])
+    const photo = photos.find(p => p.id === id)
+    await deletePhotoFromStorage(photo?.url)
     await photosDB.delete(id)
     setViewPhoto(null)
     loadPhotos()
@@ -84,6 +77,8 @@ export default function Progress() {
     ? [photos.find(p => p.id === selected[0]), photos.find(p => p.id === selected[1])]
     : null
 
+  const photoUrl = (photo) => photo?.url || null
+
   return (
     <div className="min-h-full">
       <Header title="Progreso">
@@ -100,9 +95,12 @@ export default function Progress() {
           )}
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white shadow-sm"
+            disabled={uploading}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white shadow-sm disabled:opacity-60"
           >
-            <span className="material-symbols-outlined text-lg">add_a_photo</span>
+            <span className={`material-symbols-outlined text-lg ${uploading ? 'animate-spin' : ''}`}>
+              {uploading ? 'progress_activity' : 'add_a_photo'}
+            </span>
           </button>
           <input
             ref={fileRef}
@@ -142,7 +140,7 @@ export default function Progress() {
                   <div key={p.id}>
                     <p className="text-[10px] text-text-secondary text-center mb-1">{i === 0 ? 'Before' : 'After'} — {formatDate(p.date)}</p>
                     <img
-                      src={photoURLs[p.id]}
+                      src={photoUrl(p)}
                       alt=""
                       className="w-full aspect-[3/4] object-cover rounded-xl"
                     />
@@ -183,8 +181,8 @@ export default function Progress() {
                     compareMode && selected.includes(photo.id) ? 'ring-3 ring-primary ring-offset-2' : ''
                   }`}
                 >
-                  {photoURLs[photo.id] ? (
-                    <img src={photoURLs[photo.id]} alt="" className="w-full h-full object-cover" />
+                  {photoUrl(photo) ? (
+                    <img src={photoUrl(photo)} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                       <span className="material-symbols-outlined text-gray-300">image</span>
@@ -218,8 +216,8 @@ export default function Progress() {
             </button>
           </div>
           <div className="flex-1 flex items-center justify-center p-4">
-            {photoURLs[viewPhoto.id] && (
-              <img src={photoURLs[viewPhoto.id]} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+            {photoUrl(viewPhoto) && (
+              <img src={photoUrl(viewPhoto)} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
             )}
           </div>
         </div>

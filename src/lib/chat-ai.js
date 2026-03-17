@@ -1,8 +1,8 @@
-import { measurementsDB, sessionsDB, mealsDB, routinesDB } from './db'
+import { measurementsDB, sessionsDB, mealsDB, routinesDB, usersDB } from './db'
 import { todayStr } from './storage'
 import mealsData from '../data/meals.json'
 
-const DAILY_CALORIES = mealsData.dailyGoal.calories
+const DEFAULT_CALORIES = mealsData.dailyGoal.calories
 
 let _ctxCache = null
 let _ctxCachedAt = 0
@@ -11,12 +11,14 @@ const CTX_TTL_MS = 30_000
 async function getUserContext() {
   if (_ctxCache && Date.now() - _ctxCachedAt < CTX_TTL_MS) return _ctxCache
   const today = todayStr()
-  const [measurements, sessions, meals, routines] = await Promise.all([
+  const [measurements, sessions, meals, routines, users] = await Promise.all([
     measurementsDB.getAll(),
     sessionsDB.getAll(),
     mealsDB.getAll(),
     routinesDB.getAll(),
+    usersDB.getAll(),
   ])
+  const currentUser = users[0] || {}
 
   const sorted = measurements.sort((a, b) => b.date?.localeCompare(a.date))
   const latest = sorted[0]
@@ -52,6 +54,10 @@ async function getUserContext() {
     recentSessions: recentSessions.map(s => ({ name: s.routineName, date: s.date })),
     totalMeasurements: measurements.length,
     measurements: sorted.slice(0, 3),
+    metaCalorias:  currentUser.metaCalorias  || DEFAULT_CALORIES,
+    metaProteinas: currentUser.metaProteinas || null,
+    metaCarbos:    currentUser.metaCarbos    || null,
+    metaGrasas:    currentUser.metaGrasas    || null,
   }
   _ctxCachedAt = Date.now()
   return _ctxCache
@@ -185,7 +191,7 @@ export async function sendMessage(text) {
 
   // User asking what can I eat / what should I eat
   if (/que (puedo|deberia|debería|debo|tendria|tendría que) (comer|desayunar|almorzar|cenar|merendar)/.test(lower)) {
-    const remaining = DAILY_CALORIES - ctx.todayCalories
+    const remaining = ctx.metaCalorias - ctx.todayCalories
     if (remaining > 500) {
       return `Te quedan ~${remaining} kcal por hoy. Podrías comer algo con buena proteína como pollo con arroz (~520 kcal, 40g proteína) o una tortilla de verduras (~340 kcal, 22g proteína). Revisá las comidas sugeridas en la sección de Nutrición.`
     } else if (remaining > 0) {
@@ -196,7 +202,7 @@ export async function sendMessage(text) {
 
   // How many calories / protein
   if (/cuantas calorias|cuántas calorías|cuanta proteina|cuánta proteína|cuantos carbos|cuántos carbos/.test(lower)) {
-    return `Hoy llevás ${ctx.todayCalories} kcal consumidas (meta: ${DAILY_CALORIES}). Proteína: ${ctx.todayProtein}g, Carbos: ${ctx.todayCarbs}g, Grasas: ${ctx.todayFat}g. Te faltan ${Math.max(0, DAILY_CALORIES - ctx.todayCalories)} kcal para llegar a tu objetivo.`
+    return `Hoy llevás ${ctx.todayCalories} kcal consumidas (meta: ${ctx.metaCalorias}). Proteína: ${ctx.todayProtein}g, Carbos: ${ctx.todayCarbs}g, Grasas: ${ctx.todayFat}g. Te faltan ${Math.max(0, ctx.metaCalorias - ctx.todayCalories)} kcal para llegar a tu objetivo.`
   }
 
   // Category-based response

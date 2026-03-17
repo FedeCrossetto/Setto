@@ -1,32 +1,39 @@
+import { supabase } from './supabase'
 import { photosDB, generateId } from './db'
 
-export async function savePhoto(blob, metadata = {}) {
+const BUCKET = 'fotos-progreso'
+
+export async function savePhoto(file, metadata = {}) {
   const id = generateId()
+  const ext = file.type?.split('/')[1] || 'jpg'
+  const path = `${id}.${ext}`
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false })
+
+  if (uploadError) throw uploadError
+
+  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
+
   const photo = {
     id,
-    blob,
+    url: publicUrl,
     date: new Date().toISOString().split('T')[0],
-    timestamp: Date.now(),
     ...metadata,
   }
   await photosDB.save(photo)
   return photo
 }
 
-export async function getPhotoURL(photo) {
-  if (!photo?.blob) return null
-  return URL.createObjectURL(photo.blob)
+export async function deletePhotoFromStorage(url) {
+  if (!url) return
+  const path = url.split(`/${BUCKET}/`)[1]
+  if (path) await supabase.storage.from(BUCKET).remove([path])
 }
 
-export async function fileToBlob(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const blob = new Blob([reader.result], { type: file.type })
-      resolve(blob)
-    }
-    reader.readAsArrayBuffer(file)
-  })
+export async function getPhotoURL(photo) {
+  return photo?.url || null
 }
 
 export function formatDate(dateStr) {

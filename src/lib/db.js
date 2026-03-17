@@ -127,34 +127,42 @@ export const usersDB = {
 
 function mapUserFromDB(row) {
   return {
-    id:        row.id,
-    username:  row.username,
-    nombre:    row.nombre,
-    apellido:  row.apellido,
-    edad:      row.edad,
-    sexo:      row.sexo,
-    peso:      row.peso,
-    altura:    row.altura,
-    objetivo:  row.objetivo,
-    nivel:     row.nivel,
-    avatar:    row.avatar_url,
-    createdAt: row.creado_en,
+    id:            row.id,
+    username:      row.username,
+    nombre:        row.nombre,
+    apellido:      row.apellido,
+    edad:          row.edad,
+    sexo:          row.sexo,
+    peso:          row.peso,
+    altura:        row.altura,
+    objetivo:      row.objetivo,
+    nivel:         row.nivel,
+    avatar:        row.avatar_url,
+    createdAt:     row.creado_en,
+    metaCalorias:  row.meta_calorias  || null,
+    metaProteinas: row.meta_proteinas || null,
+    metaCarbos:    row.meta_carbos    || null,
+    metaGrasas:    row.meta_grasas    || null,
   }
 }
 
 function mapUserToDB(u) {
   return {
-    id:         u.id,
-    username:   u.username?.toLowerCase().trim(),
-    nombre:     u.nombre    || null,
-    apellido:   u.apellido  || null,
-    edad:       u.edad      ? Number(u.edad)   : null,
-    sexo:       u.sexo      || null,
-    peso:       u.peso      ? Number(u.peso)   : null,
-    altura:     u.altura    ? Number(u.altura) : null,
-    objetivo:   u.objetivo  || null,
-    nivel:      u.nivel     || null,
-    avatar_url: u.avatar    || null,
+    id:             u.id,
+    username:       u.username?.toLowerCase().trim(),
+    nombre:         u.nombre    || null,
+    apellido:       u.apellido  || null,
+    edad:           u.edad      ? Number(u.edad)   : null,
+    sexo:           u.sexo      || null,
+    peso:           u.peso      ? Number(u.peso)   : null,
+    altura:         u.altura    ? Number(u.altura) : null,
+    objetivo:       u.objetivo  || null,
+    nivel:          u.nivel     || null,
+    avatar_url:     u.avatar    || null,
+    meta_calorias:  u.metaCalorias  ? Number(u.metaCalorias)  : null,
+    meta_proteinas: u.metaProteinas ? Number(u.metaProteinas) : null,
+    meta_carbos:    u.metaCarbos    ? Number(u.metaCarbos)    : null,
+    meta_grasas:    u.metaGrasas    ? Number(u.metaGrasas)    : null,
   }
 }
 
@@ -448,8 +456,8 @@ function mapMeasurementFromDB(row) {
     cintura:        row.cintura,
     cadera:         row.cadera,
     pecho:          row.pecho,
-    brazoIzq:       row.brazo_izq,       // brazo relajado
-    brazoFlex:      row.brazo_der,       // brazo flexionado
+    brazoIzq:       row.brazo_izq,  // brazo_izq = brazo relajado (legacy: columna nombrada por lateralidad pero usada para estado)
+    brazoFlex:      row.brazo_der,  // brazo_der = brazo flexionado (idem — no renombrar sin migración)
     antebrazo:      row.antebrazo,
     musloIzq:       row.muslo_izq,       // muslo superior
     musloDer:       row.muslo_der,       // muslo medial

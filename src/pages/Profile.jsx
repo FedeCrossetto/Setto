@@ -119,14 +119,18 @@ export default function Profile() {
 
   function startEdit() {
     setForm({
-      nombre:   user.nombre   || '',
-      apellido: user.apellido || '',
-      edad:     user.edad     || '',
-      sexo:     user.sexo     || 'masculino',
-      peso:     user.peso     || '',
-      altura:   user.altura   || '',
-      objetivo: user.objetivo || 'ganar músculo',
-      nivel:    user.nivel    || 'intermedio',
+      nombre:        user.nombre        || '',
+      apellido:      user.apellido      || '',
+      edad:          user.edad          || '',
+      sexo:          user.sexo          || 'masculino',
+      peso:          user.peso          || '',
+      altura:        user.altura        || '',
+      objetivo:      user.objetivo      || 'ganar músculo',
+      nivel:         user.nivel         || 'intermedio',
+      metaCalorias:  user.metaCalorias  || '',
+      metaProteinas: user.metaProteinas || '',
+      metaCarbos:    user.metaCarbos    || '',
+      metaGrasas:    user.metaGrasas    || '',
     })
     setEditing(true)
   }
@@ -137,9 +141,13 @@ export default function Profile() {
       const updated = {
         ...user,
         ...form,
-        edad:   form.edad   ? Number(form.edad)   : null,
-        peso:   form.peso   ? Number(form.peso)   : null,
-        altura: form.altura ? Number(form.altura) : null,
+        edad:          form.edad          ? Number(form.edad)          : null,
+        peso:          form.peso          ? Number(form.peso)          : null,
+        altura:        form.altura        ? Number(form.altura)        : null,
+        metaCalorias:  form.metaCalorias  ? Number(form.metaCalorias)  : null,
+        metaProteinas: form.metaProteinas ? Number(form.metaProteinas) : null,
+        metaCarbos:    form.metaCarbos    ? Number(form.metaCarbos)    : null,
+        metaGrasas:    form.metaGrasas    ? Number(form.metaGrasas)    : null,
       }
       await usersDB.save(updated)
       refreshUser(updated)
@@ -322,6 +330,32 @@ export default function Profile() {
                     >
                       {label}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Metas nutricionales */}
+              <div className="pt-1">
+                <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wide mb-2">Metas nutricionales</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'metaCalorias',  label: 'Calorías (kcal)' },
+                    { key: 'metaProteinas', label: 'Proteínas (g)' },
+                    { key: 'metaCarbos',    label: 'Carbos (g)' },
+                    { key: 'metaGrasas',    label: 'Grasas (g)' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wide block mb-1">
+                        {f.label}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={form[f.key]}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full px-3 py-2.5 bg-bg border border-border rounded-xl text-sm text-text focus:outline-none focus:border-primary"
+                      />
+                    </div>
                   ))}
                 </div>
               </div>

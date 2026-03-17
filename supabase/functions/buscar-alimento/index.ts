@@ -79,7 +79,7 @@ function mapOpenFoodFactsToAlimento(product: any) {
   const codigo_barras: string | null = product.code || null
 
   const countries: string[] = product.countries_tags || []
-  const pais = countries.find((c) => c.toLowerCase().includes('argentina')) ? 'AR' : 'AR'
+  const pais = countries.some((c) => c.toLowerCase().includes('argentina')) ? 'AR' : 'INT'
 
   const categoria: string | null =
     typeof product.categories === 'string'
