@@ -39,7 +39,7 @@ export default function Nutrition() {
     }))
   }
 
-  const totals = meals.reduce(
+  const totals = meals.filter(m => m.completed).reduce(
     (acc, m) => {
       acc.calories += m.calorias || 0
       acc.protein += m.proteinas || 0
@@ -49,6 +49,11 @@ export default function Nutrition() {
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
+
+  async function toggleMeal(meal) {
+    await mealsDB.save({ ...meal, completed: !meal.completed })
+    loadData()
+  }
 
   const goals = mealsData.dailyGoal
 
@@ -266,10 +271,18 @@ export default function Nutrition() {
               ) : (
                 <div className="space-y-2">
                   {typeMeals.map(meal => (
-                    <Card key={meal.id} className="!p-3">
+                    <Card key={meal.id} className={`!p-3 transition-opacity ${meal.completed ? '' : 'opacity-50'}`}>
                       <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleMeal(meal)}
+                          className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                            meal.completed ? 'bg-primary text-white' : 'bg-track text-text-secondary'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-base">check</span>
+                        </button>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{meal.name}</p>
+                          <p className={`text-sm font-medium ${meal.completed ? 'text-text' : 'text-text-secondary'}`}>{meal.name}</p>
                           <div className="flex gap-3 text-[10px] text-text-secondary mt-0.5">
                             <span>{meal.calorias} kcal</span>
                             <span>P: {meal.proteinas}g</span>

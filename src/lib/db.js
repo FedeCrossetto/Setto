@@ -10,7 +10,11 @@ import { supabase } from './supabase'
 // ─── Helpers ────────────────────────────────────────────────
 
 export function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for non-secure contexts (HTTP on local network)
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
 }
 
 // Set by AuthContext after login/session restore. Cleared on logout.
@@ -490,6 +494,7 @@ export const mealsDB = {
         proteinas_totales: meal.proteinas     ?? meal.protein  ?? null,
         carbohidratos_totales: meal.carbohidratos ?? meal.carbs ?? null,
         grasas_totales:    meal.grasas        ?? meal.fat      ?? null,
+        completada:        meal.completed ?? true,
       })
     )
     return meal
@@ -519,6 +524,7 @@ function mapMealFromDB(row) {
     proteinas:   row.proteinas_totales     ?? row.proteinas,
     carbohidratos: row.carbohidratos_totales ?? row.carbohidratos,
     grasas:      row.grasas_totales        ?? row.grasas,
+    completed:   row.completada ?? true,
   }
 }
 

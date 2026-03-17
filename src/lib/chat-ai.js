@@ -1,5 +1,8 @@
 import { measurementsDB, sessionsDB, mealsDB, routinesDB } from './db'
 import { todayStr } from './storage'
+import mealsData from '../data/meals.json'
+
+const DAILY_CALORIES = mealsData.dailyGoal.calories
 
 let _ctxCache = null
 let _ctxCachedAt = 0
@@ -182,7 +185,7 @@ export async function sendMessage(text) {
 
   // User asking what can I eat / what should I eat
   if (/que (puedo|deberia|debería|debo|tendria|tendría que) (comer|desayunar|almorzar|cenar|merendar)/.test(lower)) {
-    const remaining = 2200 - ctx.todayCalories
+    const remaining = DAILY_CALORIES - ctx.todayCalories
     if (remaining > 500) {
       return `Te quedan ~${remaining} kcal por hoy. Podrías comer algo con buena proteína como pollo con arroz (~520 kcal, 40g proteína) o una tortilla de verduras (~340 kcal, 22g proteína). Revisá las comidas sugeridas en la sección de Nutrición.`
     } else if (remaining > 0) {
@@ -193,7 +196,7 @@ export async function sendMessage(text) {
 
   // How many calories / protein
   if (/cuantas calorias|cuántas calorías|cuanta proteina|cuánta proteína|cuantos carbos|cuántos carbos/.test(lower)) {
-    return `Hoy llevás ${ctx.todayCalories} kcal consumidas (meta: 2200). Proteína: ${ctx.todayProtein}g, Carbos: ${ctx.todayCarbs}g, Grasas: ${ctx.todayFat}g. Te faltan ${Math.max(0, 2200 - ctx.todayCalories)} kcal para llegar a tu objetivo.`
+    return `Hoy llevás ${ctx.todayCalories} kcal consumidas (meta: ${DAILY_CALORIES}). Proteína: ${ctx.todayProtein}g, Carbos: ${ctx.todayCarbs}g, Grasas: ${ctx.todayFat}g. Te faltan ${Math.max(0, DAILY_CALORIES - ctx.todayCalories)} kcal para llegar a tu objetivo.`
   }
 
   // Category-based response

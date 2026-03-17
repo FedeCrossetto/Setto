@@ -1,14 +1,16 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
-import Home from './pages/Home'
-import Workout from './pages/Workout'
-import WorkoutSession from './pages/WorkoutSession'
-import Anthropometry from './pages/Anthropometry'
-import Nutrition from './pages/Nutrition'
-import Progress from './pages/Progress'
-import Profile from './pages/Profile'
-import Login from './pages/Login'
+
+const Home           = lazy(() => import('./pages/Home'))
+const Workout        = lazy(() => import('./pages/Workout'))
+const WorkoutSession = lazy(() => import('./pages/WorkoutSession'))
+const Anthropometry  = lazy(() => import('./pages/Anthropometry'))
+const Nutrition      = lazy(() => import('./pages/Nutrition'))
+const Progress       = lazy(() => import('./pages/Progress'))
+const Profile        = lazy(() => import('./pages/Profile'))
+const Login          = lazy(() => import('./pages/Login'))
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -30,8 +32,15 @@ function GuestRoute({ children }) {
   return children
 }
 
+const Spinner = () => (
+  <div className="min-h-screen bg-bg flex items-center justify-center">
+    <span className="material-symbols-outlined animate-spin text-primary text-4xl">progress_activity</span>
+  </div>
+)
+
 export default function App() {
   return (
+    <Suspense fallback={<Spinner />}>
     <Routes>
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
 
@@ -47,5 +56,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }

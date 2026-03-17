@@ -388,6 +388,7 @@ EXECUTE FUNCTION set_alimentos_actualizado_en();
 -- ──────────────────────────────────────────────────────────
 ALTER TABLE mediciones ADD COLUMN IF NOT EXISTS antebrazo   NUMERIC(5,1);
 ALTER TABLE mediciones ADD COLUMN IF NOT EXISTS cabeza      NUMERIC(5,1);
+ALTER TABLE comidas    ADD COLUMN IF NOT EXISTS completada  BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- Renombrar gif_url → image_url en tablas de ejercicios
 ALTER TABLE rutina_ejercicios  RENAME COLUMN gif_url TO image_url;
