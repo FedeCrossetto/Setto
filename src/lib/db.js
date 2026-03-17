@@ -286,24 +286,24 @@ export const sessionsDB = {
       completada:       session.completed   || false,
     }))
 
-    // Reemplazar ejercicios + series (cascade delete)
-    await supabase.from('sesion_ejercicios').delete().eq('sesion_id', session.id)
-
     if (session.exercises?.length > 0) {
-      // Insertar ejercicios con IDs estables
-      throw_if_error(await supabase.from('sesion_ejercicios').insert(
-        session.exercises.map((ex, i) => ({
-          id:                `${session.id}:${i}`,
-          sesion_id:         session.id,
-          orden:             i,
-          exercise_id:       ex.exerciseId || '',
-          nombre:            ex.name,
-          image_url:         ex.imageUrl || '',
-          musculos_objetivo: ex.targetMuscles || [],
-        }))
-      ))
+      const exerciseRows = session.exercises.map((ex, i) => ({
+        id:                `${session.id}:${i}`,
+        sesion_id:         session.id,
+        orden:             i,
+        exercise_id:       ex.exerciseId || '',
+        nombre:            ex.name,
+        image_url:         ex.imageUrl || '',
+        musculos_objetivo: ex.targetMuscles || [],
+      }))
+      const exerciseIds = exerciseRows.map(r => r.id)
 
-      // Insertar todas las series
+      // Upsert exercises — IDs are deterministic so no delete needed
+      throw_if_error(await supabase.from('sesion_ejercicios').upsert(exerciseRows))
+
+      // Delete only series (targeted), then reinsert — avoids cascade delete of exercises
+      await supabase.from('sesion_series').delete().in('sesion_ejercicio_id', exerciseIds)
+
       const allSeries = session.exercises.flatMap((ex, i) =>
         (ex.sets || []).map((set, j) => ({
           sesion_ejercicio_id: `${session.id}:${i}`,
@@ -377,9 +377,8 @@ function mapSessionFromDB(row) {
 // ─── MEDICIONES ──────────────────────────────────────────────
 
 export const measurementsDB = {
-  // forUserId: optional userId override (for admin acting on behalf of another user)
-  getAll: async (forUserId) => {
-    const userId = forUserId || getCurrentUserId()
+  getAll: async () => {
+    const userId = getCurrentUserId()
     const { data } = await supabase
       .from('mediciones')
       .select('*')
@@ -391,9 +390,9 @@ export const measurementsDB = {
     const { data } = await supabase.from('mediciones').select('*').eq('id', id).single()
     return data ? mapMeasurementFromDB(data) : null
   },
-  save: async (m, forUserId) => {
+  save: async (m) => {
     if (!m.id) m.id = generateId()
-    const userId = forUserId || getCurrentUserId()
+    const userId = getCurrentUserId()
     // Validar que la fecha sea ISO (YYYY-MM-DD) antes de enviar a Supabase
     const fecha = /^\d{4}-\d{2}-\d{2}$/.test(m.date) ? m.date : null
     if (!fecha) throw new Error(`Fecha inválida: "${m.date}"`)
@@ -573,14 +572,6 @@ export const settingsDB = {
   set: (key, value) => {
     localStorage.setItem(`setto-setting-${key}`, JSON.stringify(value))
   },
-}
-
-// ─── IMPORTS (historial de archivos subidos) ──────────────────
-// Kept local-only (no relevance for multi-device sync)
-export const importsDB = {
-  getAll: () => [],
-  save: async () => {},
-  delete: async () => {},
 }
 
 // ─── EXERCISE CACHE (IndexedDB — solo offline) ────────────────

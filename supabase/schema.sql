@@ -664,50 +664,80 @@ CREATE POLICY pol_fotos_delete ON fotos_progreso
   FOR DELETE USING (usuario_id = current_usuario_id());
 
 
--- 10. alimentos — globally readable; only verified editors can insert
+-- ──────────────────────────────────────────────────────────
+--  ADMIN ROLE — Step 1: add is_admin flag to usuarios
+-- ──────────────────────────────────────────────────────────
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Helper: returns TRUE if the current auth user is an admin.
+-- STABLE so Postgres can cache it within a single RLS evaluation pass.
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT COALESCE(
+    (SELECT is_admin FROM usuarios WHERE auth_user_id = auth.uid() LIMIT 1),
+    FALSE
+  );
+$$;
+
+-- 10. alimentos — globally readable; only admins can write
 --     (no usuario_id column — shared catalog)
 DROP POLICY IF EXISTS pol_alimentos_select ON alimentos;
 DROP POLICY IF EXISTS pol_alimentos_insert ON alimentos;
 DROP POLICY IF EXISTS pol_alimentos_update ON alimentos;
+DROP POLICY IF EXISTS pol_alimentos_delete ON alimentos;
 
 CREATE POLICY pol_alimentos_select ON alimentos
   FOR SELECT USING (true);
 
 CREATE POLICY pol_alimentos_insert ON alimentos
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (is_admin());
 
 CREATE POLICY pol_alimentos_update ON alimentos
-  FOR UPDATE USING (auth.uid() IS NOT NULL);
+  FOR UPDATE USING (is_admin());
+
+CREATE POLICY pol_alimentos_delete ON alimentos
+  FOR DELETE USING (is_admin());
 
 
--- 11. alimentos_porciones — readable by all auth users; writable by auth users
+-- 11. alimentos_porciones — readable by all; writable by admins only
 DROP POLICY IF EXISTS pol_alimentos_porciones_select ON alimentos_porciones;
 DROP POLICY IF EXISTS pol_alimentos_porciones_insert ON alimentos_porciones;
 DROP POLICY IF EXISTS pol_alimentos_porciones_update ON alimentos_porciones;
+DROP POLICY IF EXISTS pol_alimentos_porciones_delete ON alimentos_porciones;
 
 CREATE POLICY pol_alimentos_porciones_select ON alimentos_porciones
   FOR SELECT USING (true);
 
 CREATE POLICY pol_alimentos_porciones_insert ON alimentos_porciones
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (is_admin());
 
 CREATE POLICY pol_alimentos_porciones_update ON alimentos_porciones
-  FOR UPDATE USING (auth.uid() IS NOT NULL);
+  FOR UPDATE USING (is_admin());
+
+CREATE POLICY pol_alimentos_porciones_delete ON alimentos_porciones
+  FOR DELETE USING (is_admin());
 
 
--- 12. alimentos_alias — same as porciones
+-- 12. alimentos_alias — readable by all; writable by admins only
 DROP POLICY IF EXISTS pol_alimentos_alias_select ON alimentos_alias;
 DROP POLICY IF EXISTS pol_alimentos_alias_insert ON alimentos_alias;
 DROP POLICY IF EXISTS pol_alimentos_alias_update ON alimentos_alias;
+DROP POLICY IF EXISTS pol_alimentos_alias_delete ON alimentos_alias;
 
 CREATE POLICY pol_alimentos_alias_select ON alimentos_alias
   FOR SELECT USING (true);
 
 CREATE POLICY pol_alimentos_alias_insert ON alimentos_alias
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (is_admin());
 
 CREATE POLICY pol_alimentos_alias_update ON alimentos_alias
-  FOR UPDATE USING (auth.uid() IS NOT NULL);
+  FOR UPDATE USING (is_admin());
+
+CREATE POLICY pol_alimentos_alias_delete ON alimentos_alias
+  FOR DELETE USING (is_admin());
 
 
 -- 13. comidas_items — ownership via parent comida

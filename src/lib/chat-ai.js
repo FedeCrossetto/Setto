@@ -1,7 +1,12 @@
 import { measurementsDB, sessionsDB, mealsDB, routinesDB } from './db'
 import { todayStr } from './storage'
 
+let _ctxCache = null
+let _ctxCachedAt = 0
+const CTX_TTL_MS = 30_000
+
 async function getUserContext() {
+  if (_ctxCache && Date.now() - _ctxCachedAt < CTX_TTL_MS) return _ctxCache
   const today = todayStr()
   const [measurements, sessions, meals, routines] = await Promise.all([
     measurementsDB.getAll(),
@@ -28,7 +33,7 @@ async function getUserContext() {
     .sort((a, b) => b.date?.localeCompare(a.date))
     .slice(0, 5)
 
-  return {
+  _ctxCache = {
     peso: latest?.peso || null,
     grasa: latest?.grasa || null,
     lastMeasureDate: latest?.date || null,
@@ -45,6 +50,8 @@ async function getUserContext() {
     totalMeasurements: measurements.length,
     measurements: sorted.slice(0, 3),
   }
+  _ctxCachedAt = Date.now()
+  return _ctxCache
 }
 
 const TIPS = {
