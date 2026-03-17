@@ -13,14 +13,15 @@ export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 }
 
+// Set by AuthContext after login/session restore. Cleared on logout.
+let _currentUserId = null
+
+export function setCurrentUserId(id) {
+  _currentUserId = id
+}
+
 function getCurrentUserId() {
-  try {
-    const stored = localStorage.getItem('setto-session')
-    if (!stored) return null
-    return JSON.parse(stored).userId
-  } catch {
-    return null
-  }
+  return _currentUserId
 }
 
 function throw_if_error({ error }) {
@@ -52,6 +53,14 @@ export const usersDB = {
       .select('*')
       .eq('username', username.toLowerCase().trim())
       .maybeSingle()
+    return data ? mapUserFromDB(data) : null
+  },
+  getByAuthId: async (authUserId) => {
+    const { data } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('auth_user_id', authUserId)
+      .single()
     return data ? mapUserFromDB(data) : null
   },
 }

@@ -1,50 +1,73 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { usersDB } from '../lib/db'
+import { supabase } from '../lib/supabase'
+import { usersDB, setCurrentUserId } from '../lib/db'
 
 const AuthContext = createContext(null)
-
-const SESSION_KEY = 'setto-session'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function restoreSession() {
-      try {
-        const stored = localStorage.getItem(SESSION_KEY)
-        if (stored) {
-          const { userId } = JSON.parse(stored)
-          const u = await usersDB.get(userId)
-          if (u) setUser(u)
-          else localStorage.removeItem(SESSION_KEY)
+    // INITIAL_SESSION fires on mount with the current session (or null).
+    // Handles page refresh / tab reopen without any extra getSession() call.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setCurrentUserId(null)
+          setUser(null)
+          setLoading(false)
+          return
         }
-      } catch {
-        localStorage.removeItem(SESSION_KEY)
+
+        if (event === 'INITIAL_SESSION') {
+          if (session?.user) {
+            const u = await usersDB.getByAuthId(session.user.id)
+            if (u) {
+              setCurrentUserId(u.id)
+              setUser(u)
+            }
+          }
+          setLoading(false)
+        }
       }
-      setLoading(false)
-    }
-    restoreSession()
+    )
+
+    return () => subscription.unsubscribe()
   }, [])
 
   async function login(username, password) {
-    let u
-    try {
-      u = await usersDB.getByUsername(username.trim().toLowerCase())
-    } catch (e) {
-      throw new Error('Error de conexión. Verificá tu internet.')
-    }
-    if (!u || u.password !== password) {
+    // Step 1: resolve the email stored in usuarios for this username.
+    const { data: row } = await supabase
+      .from('usuarios')
+      .select('email')
+      .eq('username', username.trim().toLowerCase())
+      .maybeSingle()
+
+    if (!row?.email) {
       throw new Error('Usuario o contraseña incorrectos')
     }
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: u.id }))
+
+    // Step 2: Supabase Auth sign in.
+    const { data: { user: authUser }, error } = await supabase.auth.signInWithPassword({
+      email: row.email,
+      password,
+    })
+
+    if (error) throw new Error('Usuario o contraseña incorrectos')
+
+    // Step 3: fetch full usuarios row and set app state.
+    const u = await usersDB.getByAuthId(authUser.id)
+    if (!u) throw new Error('Perfil no encontrado. Contactá al administrador.')
+
+    setCurrentUserId(u.id)
     setUser(u)
     return u
   }
 
-  function logout() {
-    localStorage.removeItem(SESSION_KEY)
-    setUser(null)
+  async function logout() {
+    await supabase.auth.signOut()
+    // onAuthStateChange SIGNED_OUT handler clears user state.
   }
 
   function refreshUser(updated) {

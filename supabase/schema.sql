@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   objetivo     TEXT    CHECK (objetivo IN ('perder peso', 'ganar músculo', 'mantener', 'rendimiento')),
   nivel        TEXT    CHECK (nivel IN ('principiante', 'intermedio', 'avanzado')),
   avatar_url   TEXT,
+  email        TEXT    UNIQUE,
   creado_en    TIMESTAMPTZ DEFAULT NOW(),
   auth_user_id UUID    UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL
 );
@@ -407,3 +408,13 @@ ALTER TABLE rutinas ADD COLUMN IF NOT EXISTS image_url TEXT;
 -- ──────────────────────────────────────────────────────────
 ALTER TABLE usuarios
   ADD COLUMN IF NOT EXISTS auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- ──────────────────────────────────────────────────────────
+--  AUTH MIGRATION — Strategy B, Step 2
+--  Adds email column required by Supabase Auth.
+--  Nullable: existing rows are unaffected until populated.
+--  UNIQUE: mirrors Supabase Auth's one-email-per-user rule.
+--  Idempotent: safe to run on a live database.
+-- ──────────────────────────────────────────────────────────
+ALTER TABLE usuarios
+  ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
