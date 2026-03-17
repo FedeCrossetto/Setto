@@ -12,7 +12,6 @@
 CREATE TABLE IF NOT EXISTS usuarios (
   id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   username     TEXT    UNIQUE NOT NULL,
-  password     TEXT    NOT NULL,
   nombre       TEXT,
   apellido     TEXT,
   edad         INTEGER,
@@ -174,18 +173,22 @@ CREATE TABLE IF NOT EXISTS fotos_progreso (
 CREATE INDEX IF NOT EXISTS idx_fotos_usuario ON fotos_progreso(usuario_id);
 
 -- ──────────────────────────────────────────────────────────
---  RLS — Deshabilitado (se filtra por usuario_id en queries)
---  Habilitar cuando se use Supabase Auth
+--  RLS — Habilitado. Supabase Auth activo.
+--  Políticas definidas en la sección de migraciones al final.
 -- ──────────────────────────────────────────────────────────
-ALTER TABLE usuarios        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE rutinas         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE rutina_ejercicios DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sesiones        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sesion_ejercicios DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sesion_series   DISABLE ROW LEVEL SECURITY;
-ALTER TABLE mediciones      DISABLE ROW LEVEL SECURITY;
-ALTER TABLE comidas         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE fotos_progreso  DISABLE ROW LEVEL SECURITY;
+ALTER TABLE usuarios          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rutinas           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rutina_ejercicios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sesiones          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sesion_ejercicios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sesion_series     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mediciones        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comidas           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fotos_progreso    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE alimentos         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE alimentos_porciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE alimentos_alias   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comidas_items     ENABLE ROW LEVEL SECURITY;
 
 -- ──────────────────────────────────────────────────────────
 --  10. NUTRICIÓN — ALIMENTOS Y COMIDAS DETALLADAS
@@ -418,3 +421,317 @@ ALTER TABLE usuarios
 -- ──────────────────────────────────────────────────────────
 ALTER TABLE usuarios
   ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
+
+-- ──────────────────────────────────────────────────────────
+--  AUTH MIGRATION — Strategy B, Step 3
+--  Drop legacy password column.
+--  Idempotent: IF EXISTS guard prevents errors on re-run.
+-- ──────────────────────────────────────────────────────────
+ALTER TABLE usuarios DROP COLUMN IF EXISTS password;
+
+-- ──────────────────────────────────────────────────────────
+--  AUTH MIGRATION — Strategy B, Step 4
+--  Helper function: resolves the current auth.uid() to the
+--  app-level usuarios.id.
+--  STABLE: result is constant within a single query, so
+--  Postgres can cache it per RLS evaluation pass.
+-- ──────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION current_usuario_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT id FROM usuarios WHERE auth_user_id = auth.uid() LIMIT 1;
+$$;
+
+-- ──────────────────────────────────────────────────────────
+--  AUTH MIGRATION — Strategy B, Step 5
+--  Row Level Security policies.
+--  Each table: owner = the authenticated user whose
+--  auth_user_id maps to the row's usuario_id (or id for
+--  the usuarios table itself).
+--  DROP POLICY IF EXISTS makes this block idempotent.
+-- ──────────────────────────────────────────────────────────
+
+-- 1. usuarios — users can read/write only their own row
+DROP POLICY IF EXISTS pol_usuarios_select ON usuarios;
+DROP POLICY IF EXISTS pol_usuarios_insert ON usuarios;
+DROP POLICY IF EXISTS pol_usuarios_update ON usuarios;
+DROP POLICY IF EXISTS pol_usuarios_delete ON usuarios;
+
+CREATE POLICY pol_usuarios_select ON usuarios
+  FOR SELECT USING (auth_user_id = auth.uid());
+
+CREATE POLICY pol_usuarios_insert ON usuarios
+  FOR INSERT WITH CHECK (auth_user_id = auth.uid());
+
+CREATE POLICY pol_usuarios_update ON usuarios
+  FOR UPDATE USING (auth_user_id = auth.uid());
+
+CREATE POLICY pol_usuarios_delete ON usuarios
+  FOR DELETE USING (auth_user_id = auth.uid());
+
+
+-- 2. rutinas
+DROP POLICY IF EXISTS pol_rutinas_select ON rutinas;
+DROP POLICY IF EXISTS pol_rutinas_insert ON rutinas;
+DROP POLICY IF EXISTS pol_rutinas_update ON rutinas;
+DROP POLICY IF EXISTS pol_rutinas_delete ON rutinas;
+
+CREATE POLICY pol_rutinas_select ON rutinas
+  FOR SELECT USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_rutinas_insert ON rutinas
+  FOR INSERT WITH CHECK (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_rutinas_update ON rutinas
+  FOR UPDATE USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_rutinas_delete ON rutinas
+  FOR DELETE USING (usuario_id = current_usuario_id());
+
+
+-- 3. rutina_ejercicios — ownership via parent rutina
+DROP POLICY IF EXISTS pol_rutina_ejercicios_select ON rutina_ejercicios;
+DROP POLICY IF EXISTS pol_rutina_ejercicios_insert ON rutina_ejercicios;
+DROP POLICY IF EXISTS pol_rutina_ejercicios_update ON rutina_ejercicios;
+DROP POLICY IF EXISTS pol_rutina_ejercicios_delete ON rutina_ejercicios;
+
+CREATE POLICY pol_rutina_ejercicios_select ON rutina_ejercicios
+  FOR SELECT USING (
+    rutina_id IN (SELECT id FROM rutinas WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_rutina_ejercicios_insert ON rutina_ejercicios
+  FOR INSERT WITH CHECK (
+    rutina_id IN (SELECT id FROM rutinas WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_rutina_ejercicios_update ON rutina_ejercicios
+  FOR UPDATE USING (
+    rutina_id IN (SELECT id FROM rutinas WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_rutina_ejercicios_delete ON rutina_ejercicios
+  FOR DELETE USING (
+    rutina_id IN (SELECT id FROM rutinas WHERE usuario_id = current_usuario_id())
+  );
+
+
+-- 4. sesiones
+DROP POLICY IF EXISTS pol_sesiones_select ON sesiones;
+DROP POLICY IF EXISTS pol_sesiones_insert ON sesiones;
+DROP POLICY IF EXISTS pol_sesiones_update ON sesiones;
+DROP POLICY IF EXISTS pol_sesiones_delete ON sesiones;
+
+CREATE POLICY pol_sesiones_select ON sesiones
+  FOR SELECT USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_sesiones_insert ON sesiones
+  FOR INSERT WITH CHECK (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_sesiones_update ON sesiones
+  FOR UPDATE USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_sesiones_delete ON sesiones
+  FOR DELETE USING (usuario_id = current_usuario_id());
+
+
+-- 5. sesion_ejercicios — ownership via parent sesion
+DROP POLICY IF EXISTS pol_sesion_ejercicios_select ON sesion_ejercicios;
+DROP POLICY IF EXISTS pol_sesion_ejercicios_insert ON sesion_ejercicios;
+DROP POLICY IF EXISTS pol_sesion_ejercicios_update ON sesion_ejercicios;
+DROP POLICY IF EXISTS pol_sesion_ejercicios_delete ON sesion_ejercicios;
+
+CREATE POLICY pol_sesion_ejercicios_select ON sesion_ejercicios
+  FOR SELECT USING (
+    sesion_id IN (SELECT id FROM sesiones WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_sesion_ejercicios_insert ON sesion_ejercicios
+  FOR INSERT WITH CHECK (
+    sesion_id IN (SELECT id FROM sesiones WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_sesion_ejercicios_update ON sesion_ejercicios
+  FOR UPDATE USING (
+    sesion_id IN (SELECT id FROM sesiones WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_sesion_ejercicios_delete ON sesion_ejercicios
+  FOR DELETE USING (
+    sesion_id IN (SELECT id FROM sesiones WHERE usuario_id = current_usuario_id())
+  );
+
+
+-- 6. sesion_series — ownership via parent sesion_ejercicio → sesion
+DROP POLICY IF EXISTS pol_sesion_series_select ON sesion_series;
+DROP POLICY IF EXISTS pol_sesion_series_insert ON sesion_series;
+DROP POLICY IF EXISTS pol_sesion_series_update ON sesion_series;
+DROP POLICY IF EXISTS pol_sesion_series_delete ON sesion_series;
+
+CREATE POLICY pol_sesion_series_select ON sesion_series
+  FOR SELECT USING (
+    sesion_ejercicio_id IN (
+      SELECT se.id FROM sesion_ejercicios se
+      JOIN sesiones s ON s.id = se.sesion_id
+      WHERE s.usuario_id = current_usuario_id()
+    )
+  );
+
+CREATE POLICY pol_sesion_series_insert ON sesion_series
+  FOR INSERT WITH CHECK (
+    sesion_ejercicio_id IN (
+      SELECT se.id FROM sesion_ejercicios se
+      JOIN sesiones s ON s.id = se.sesion_id
+      WHERE s.usuario_id = current_usuario_id()
+    )
+  );
+
+CREATE POLICY pol_sesion_series_update ON sesion_series
+  FOR UPDATE USING (
+    sesion_ejercicio_id IN (
+      SELECT se.id FROM sesion_ejercicios se
+      JOIN sesiones s ON s.id = se.sesion_id
+      WHERE s.usuario_id = current_usuario_id()
+    )
+  );
+
+CREATE POLICY pol_sesion_series_delete ON sesion_series
+  FOR DELETE USING (
+    sesion_ejercicio_id IN (
+      SELECT se.id FROM sesion_ejercicios se
+      JOIN sesiones s ON s.id = se.sesion_id
+      WHERE s.usuario_id = current_usuario_id()
+    )
+  );
+
+
+-- 7. mediciones
+DROP POLICY IF EXISTS pol_mediciones_select ON mediciones;
+DROP POLICY IF EXISTS pol_mediciones_insert ON mediciones;
+DROP POLICY IF EXISTS pol_mediciones_update ON mediciones;
+DROP POLICY IF EXISTS pol_mediciones_delete ON mediciones;
+
+CREATE POLICY pol_mediciones_select ON mediciones
+  FOR SELECT USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_mediciones_insert ON mediciones
+  FOR INSERT WITH CHECK (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_mediciones_update ON mediciones
+  FOR UPDATE USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_mediciones_delete ON mediciones
+  FOR DELETE USING (usuario_id = current_usuario_id());
+
+
+-- 8. comidas
+DROP POLICY IF EXISTS pol_comidas_select ON comidas;
+DROP POLICY IF EXISTS pol_comidas_insert ON comidas;
+DROP POLICY IF EXISTS pol_comidas_update ON comidas;
+DROP POLICY IF EXISTS pol_comidas_delete ON comidas;
+
+CREATE POLICY pol_comidas_select ON comidas
+  FOR SELECT USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_comidas_insert ON comidas
+  FOR INSERT WITH CHECK (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_comidas_update ON comidas
+  FOR UPDATE USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_comidas_delete ON comidas
+  FOR DELETE USING (usuario_id = current_usuario_id());
+
+
+-- 9. fotos_progreso
+DROP POLICY IF EXISTS pol_fotos_select ON fotos_progreso;
+DROP POLICY IF EXISTS pol_fotos_insert ON fotos_progreso;
+DROP POLICY IF EXISTS pol_fotos_update ON fotos_progreso;
+DROP POLICY IF EXISTS pol_fotos_delete ON fotos_progreso;
+
+CREATE POLICY pol_fotos_select ON fotos_progreso
+  FOR SELECT USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_fotos_insert ON fotos_progreso
+  FOR INSERT WITH CHECK (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_fotos_update ON fotos_progreso
+  FOR UPDATE USING (usuario_id = current_usuario_id());
+
+CREATE POLICY pol_fotos_delete ON fotos_progreso
+  FOR DELETE USING (usuario_id = current_usuario_id());
+
+
+-- 10. alimentos — globally readable; only verified editors can insert
+--     (no usuario_id column — shared catalog)
+DROP POLICY IF EXISTS pol_alimentos_select ON alimentos;
+DROP POLICY IF EXISTS pol_alimentos_insert ON alimentos;
+DROP POLICY IF EXISTS pol_alimentos_update ON alimentos;
+
+CREATE POLICY pol_alimentos_select ON alimentos
+  FOR SELECT USING (true);
+
+CREATE POLICY pol_alimentos_insert ON alimentos
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY pol_alimentos_update ON alimentos
+  FOR UPDATE USING (auth.uid() IS NOT NULL);
+
+
+-- 11. alimentos_porciones — readable by all auth users; writable by auth users
+DROP POLICY IF EXISTS pol_alimentos_porciones_select ON alimentos_porciones;
+DROP POLICY IF EXISTS pol_alimentos_porciones_insert ON alimentos_porciones;
+DROP POLICY IF EXISTS pol_alimentos_porciones_update ON alimentos_porciones;
+
+CREATE POLICY pol_alimentos_porciones_select ON alimentos_porciones
+  FOR SELECT USING (true);
+
+CREATE POLICY pol_alimentos_porciones_insert ON alimentos_porciones
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY pol_alimentos_porciones_update ON alimentos_porciones
+  FOR UPDATE USING (auth.uid() IS NOT NULL);
+
+
+-- 12. alimentos_alias — same as porciones
+DROP POLICY IF EXISTS pol_alimentos_alias_select ON alimentos_alias;
+DROP POLICY IF EXISTS pol_alimentos_alias_insert ON alimentos_alias;
+DROP POLICY IF EXISTS pol_alimentos_alias_update ON alimentos_alias;
+
+CREATE POLICY pol_alimentos_alias_select ON alimentos_alias
+  FOR SELECT USING (true);
+
+CREATE POLICY pol_alimentos_alias_insert ON alimentos_alias
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY pol_alimentos_alias_update ON alimentos_alias
+  FOR UPDATE USING (auth.uid() IS NOT NULL);
+
+
+-- 13. comidas_items — ownership via parent comida
+DROP POLICY IF EXISTS pol_comidas_items_select ON comidas_items;
+DROP POLICY IF EXISTS pol_comidas_items_insert ON comidas_items;
+DROP POLICY IF EXISTS pol_comidas_items_update ON comidas_items;
+DROP POLICY IF EXISTS pol_comidas_items_delete ON comidas_items;
+
+CREATE POLICY pol_comidas_items_select ON comidas_items
+  FOR SELECT USING (
+    comida_id IN (SELECT id FROM comidas WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_comidas_items_insert ON comidas_items
+  FOR INSERT WITH CHECK (
+    comida_id IN (SELECT id FROM comidas WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_comidas_items_update ON comidas_items
+  FOR UPDATE USING (
+    comida_id IN (SELECT id FROM comidas WHERE usuario_id = current_usuario_id())
+  );
+
+CREATE POLICY pol_comidas_items_delete ON comidas_items
+  FOR DELETE USING (
+    comida_id IN (SELECT id FROM comidas WHERE usuario_id = current_usuario_id())
+  );

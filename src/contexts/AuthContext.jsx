@@ -20,13 +20,11 @@ export function AuthProvider({ children }) {
           return
         }
 
-        if (event === 'INITIAL_SESSION') {
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
           if (session?.user) {
-            const u = await usersDB.getByAuthId(session.user.id)
-            if (u) {
-              setCurrentUserId(u.id)
-              setUser(u)
-            }
+            const u = await usersDB.getOrCreate(session.user)
+            setCurrentUserId(u.id)
+            setUser(u)
           }
           setLoading(false)
         }
@@ -37,29 +35,27 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function login(username, password) {
-    // Step 1: resolve the email stored in usuarios for this username.
+    // Step 1: try to resolve the email by username (existing users).
+    // If not found, treat the input itself as the email (new users created
+    // directly in Supabase Auth who don't have a usuarios row yet).
     const { data: row } = await supabase
       .from('usuarios')
       .select('email')
       .eq('username', username.trim().toLowerCase())
       .maybeSingle()
 
-    if (!row?.email) {
-      throw new Error('Usuario o contraseña incorrectos')
-    }
+    const emailToUse = row?.email || username.trim()
 
     // Step 2: Supabase Auth sign in.
     const { data: { user: authUser }, error } = await supabase.auth.signInWithPassword({
-      email: row.email,
+      email: emailToUse,
       password,
     })
 
     if (error) throw new Error('Usuario o contraseña incorrectos')
 
-    // Step 3: fetch full usuarios row and set app state.
-    const u = await usersDB.getByAuthId(authUser.id)
-    if (!u) throw new Error('Perfil no encontrado. Contactá al administrador.')
-
+    // Step 3: fetch or create the usuarios row, then set app state.
+    const u = await usersDB.getOrCreate(authUser)
     setCurrentUserId(u.id)
     setUser(u)
     return u

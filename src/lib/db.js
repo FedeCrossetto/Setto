@@ -63,13 +63,68 @@ export const usersDB = {
       .single()
     return data ? mapUserFromDB(data) : null
   },
+
+  // Returns the existing usuarios row for this Supabase Auth user,
+  // or creates one automatically if none exists yet.
+  // Idempotent: safe to call on every login or session restore.
+  getOrCreate: async (authUser) => {
+    // 1. Return existing row if already linked.
+    const existing = await usersDB.getByAuthId(authUser.id)
+    if (existing) return existing
+
+    // 2. Derive a clean default username from the email prefix.
+    const emailPrefix = (authUser.email || '')
+      .split('@')[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_') || 'user'
+    const fallbackUsername = emailPrefix + '_' + authUser.id.slice(0, 6)
+
+    // 3. First insert attempt using the email prefix as username.
+    //    id is omitted — PostgreSQL generates a UUID via DEFAULT.
+    const { data, error } = await supabase
+      .from('usuarios')
+      .insert({
+        auth_user_id: authUser.id,
+        email:        authUser.email || null,
+        username:     emailPrefix,
+        nombre:       authUser.user_metadata?.full_name || null,
+      })
+      .select()
+      .single()
+
+    if (!error) return mapUserFromDB(data)
+
+    // 4. Unique violation (code 23505): could be username conflict or a
+    //    concurrent creation race. Re-check before assuming username conflict.
+    if (error.code === '23505') {
+      const refetch = await usersDB.getByAuthId(authUser.id)
+      if (refetch) return refetch
+
+      // auth_user_id is unique so this is a username collision — retry
+      // with the fallback username that includes the auth UUID suffix.
+      const { data: data2, error: error2 } = await supabase
+        .from('usuarios')
+        .insert({
+          auth_user_id: authUser.id,
+          email:        authUser.email || null,
+          username:     fallbackUsername,
+          nombre:       authUser.user_metadata?.full_name || null,
+        })
+        .select()
+        .single()
+
+      if (error2) throw error2
+      return mapUserFromDB(data2)
+    }
+
+    throw error
+  },
 }
 
 function mapUserFromDB(row) {
   return {
     id:        row.id,
     username:  row.username,
-    password:  row.password,
     nombre:    row.nombre,
     apellido:  row.apellido,
     edad:      row.edad,
@@ -87,7 +142,6 @@ function mapUserToDB(u) {
   return {
     id:         u.id,
     username:   u.username?.toLowerCase().trim(),
-    password:   u.password,
     nombre:     u.nombre    || null,
     apellido:   u.apellido  || null,
     edad:       u.edad      ? Number(u.edad)   : null,
