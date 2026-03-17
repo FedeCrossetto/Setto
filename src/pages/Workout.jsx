@@ -252,9 +252,10 @@ export default function Workout() {
         <div className="flex items-center gap-2 pr-1">
           <button
             onClick={() => setShowCreate(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white shadow-sm"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-semibold"
           >
-            <span className="material-symbols-outlined text-lg">add</span>
+            <span className="material-symbols-outlined text-sm">add</span>
+            Nueva
           </button>
         </div>
       </Header>
@@ -411,11 +412,11 @@ export default function Workout() {
               </div>
             ) : (
               sessions.map(session => (
-                <Card key={session.id} onClick={() => navigate(`/workout/session/${session.id}`)}>
+                <Card key={session.id} className="!p-3" onClick={() => navigate(`/workout/session/${session.id}`)}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-sm">{session.routineName}</h3>
-                      <p className="text-xs text-text-secondary mt-0.5">{formatDateWithWeekday(session.date)}</p>
+                      <h3 className="font-semibold text-xs">{session.routineName}</h3>
+                      <p className="text-[10px] text-text-secondary mt-0.5">{formatDateWithWeekday(session.date)}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       {session.completed && (
@@ -641,16 +642,16 @@ export default function Workout() {
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-primary text-base">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-sm">
                     {getRoutineCover(previewRoutine.name).icon}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <h2 className="font-bold text-base text-text truncate">{previewRoutine.name}</h2>
-                  <p className="text-xs text-text-secondary">{previewRoutine.exercises.length} ejercicios</p>
+                  <h2 className="font-bold text-sm text-text truncate">{previewRoutine.name}</h2>
+                  <p className="text-[10px] text-text-secondary">{previewRoutine.exercises.length} ejercicios</p>
                 </div>
               </div>
               <button onClick={() => setPreviewRoutine(null)} className="p-1.5 text-text-secondary rounded-full hover:bg-border/50">
@@ -659,19 +660,19 @@ export default function Workout() {
             </div>
 
             {/* Exercise list */}
-            <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-2">
+            <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-1.5">
               {previewRoutine.exercises.map((ex, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-bg border border-border">
+                <div key={i} className="flex items-center gap-2.5 p-2 rounded-xl bg-bg border border-border">
                   {ex.imageUrl ? (
-                    <img src={ex.imageUrl} alt={getDisplayName(ex.exerciseId) || ex.name} className="w-12 h-12 rounded-lg object-cover bg-track shrink-0" loading="lazy" />
+                    <img src={ex.imageUrl} alt={getDisplayName(ex.exerciseId) || ex.name} className="w-9 h-9 rounded-lg object-cover bg-track shrink-0" loading="lazy" />
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-track flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-text-secondary/40 text-xl">fitness_center</span>
+                    <div className="w-9 h-9 rounded-lg bg-track flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-text-secondary/40 text-base">fitness_center</span>
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-<p className="text-sm font-semibold text-text truncate">{getDisplayName(ex.exerciseId) || ex.name}</p>
-                        <p className="text-[11px] text-text-secondary">{ex.sets} series</p>
+                    <p className="text-xs font-semibold text-text truncate">{getDisplayName(ex.exerciseId) || ex.name}</p>
+                        <p className="text-[10px] text-text-secondary">{ex.sets} series</p>
                         {ex.targetMuscles?.length > 0 && (
                           <p className="text-[10px] text-primary/70 truncate mt-0.5">{ex.targetMuscles.slice(0, 2).join(' · ')}</p>
                         )}
@@ -682,10 +683,10 @@ export default function Workout() {
                 </div>
 
             {/* CTA */}
-            <div className="px-5 py-4 border-t border-border shrink-0">
+            <div className="px-4 py-3 border-t border-border shrink-0">
               <button
                 onClick={() => { setPreviewRoutine(null); startSession(previewRoutine) }}
-                className="w-full py-3 bg-primary text-white text-sm font-bold rounded-2xl active:scale-[0.98] transition-all"
+                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl active:scale-[0.98] transition-all"
               >
                 Empezar rutina
               </button>

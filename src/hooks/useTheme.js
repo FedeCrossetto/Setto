@@ -3,8 +3,9 @@ import { useState } from 'react'
 const STORAGE_KEY = 'setto-theme'
 
 function readStoredTheme() {
-  if (typeof window === 'undefined') return 'light'
-  return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+  if (typeof window === 'undefined') return 'dark'
+  const stored = localStorage.getItem(STORAGE_KEY)
+  return stored === 'light' ? 'light' : 'dark'
 }
 
 function applyTheme(value) {

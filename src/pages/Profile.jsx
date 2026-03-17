@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { usersDB, measurementsDB } from '../lib/db'
+import { useTheme } from '../hooks/useTheme'
 import Header from '../components/Header'
 import Card from '../components/ui/Card'
 
@@ -68,6 +69,7 @@ function InfoRow({ icon, label, value }) {
 
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth()
+  const [theme, , toggleTheme] = useTheme()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -378,6 +380,18 @@ export default function Profile() {
             </div>
           </Card>
         )}
+
+        {/* Tema */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between py-3 px-4 bg-card border border-border rounded-xl"
+        >
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-lg text-primary">{theme === 'dark' ? 'dark_mode' : 'light_mode'}</span>
+            <span className="text-sm font-semibold text-text">{theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}</span>
+          </div>
+          <span className="text-xs text-text-secondary">{theme === 'dark' ? 'Cambiar a claro' : 'Cambiar a oscuro'}</span>
+        </button>
 
         {/* Cerrar sesión */}
         <button

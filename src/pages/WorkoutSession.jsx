@@ -192,7 +192,7 @@ export default function WorkoutSession() {
           return (
             <Card
               key={`${session.id}:${exIdx}`}
-              className={`transition-all ${allDone ? 'opacity-80' : ''}`}
+              className={`!p-3 transition-all ${allDone ? 'opacity-80' : ''}`}
             >
               {/* Exercise header */}
               <div className="flex items-center gap-2.5 mb-3">
@@ -273,8 +273,8 @@ export default function WorkoutSession() {
                     <span className="text-[11px] font-bold text-text-secondary text-center">{setIdx + 1}</span>
                     {session.completed ? (
                       <>
-                        <span className="text-sm font-semibold text-text text-center">{set.weight || '—'}</span>
-                        <span className="text-sm font-semibold text-text text-center">{set.reps || '—'}</span>
+                        <span className="text-sm font-semibold tabular-nums text-text text-center">{set.weight || '—'}</span>
+                        <span className="text-sm font-semibold tabular-nums text-text text-center">{set.reps || '—'}</span>
                       </>
                     ) : (
                       <>
@@ -284,7 +284,7 @@ export default function WorkoutSession() {
                           placeholder="0"
                           value={set.weight}
                           onChange={e => updateSet(exIdx, setIdx, 'weight', e.target.value)}
-                          className="w-full px-2 py-1.5 bg-card rounded-lg text-sm text-center font-medium border border-border text-text focus:outline-none focus:border-primary"
+                          className="w-full px-2 py-1.5 bg-card rounded-lg text-sm text-center font-medium tabular-nums border border-border text-text focus:outline-none focus:border-primary"
                         />
                         <input
                           type="number"
@@ -292,7 +292,7 @@ export default function WorkoutSession() {
                           placeholder="0"
                           value={set.reps}
                           onChange={e => updateSet(exIdx, setIdx, 'reps', e.target.value)}
-                          className="w-full px-2 py-1.5 bg-card rounded-lg text-sm text-center font-medium border border-border text-text focus:outline-none focus:border-primary"
+                          className="w-full px-2 py-1.5 bg-card rounded-lg text-sm text-center font-medium tabular-nums border border-border text-text focus:outline-none focus:border-primary"
                         />
                       </>
                     )}

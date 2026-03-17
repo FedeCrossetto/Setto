@@ -222,14 +222,15 @@ export default function Anthropometry() {
     <div className="min-h-full">
       <Header title="Antropometría">
         {isAdmin && (
-          <label className={`w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition-all ${importing ? 'bg-primary/20 text-primary/50' : 'bg-primary text-white active:scale-95'}`} title="Importar Excel">
-            <span className={`material-symbols-outlined text-lg ${importing ? 'animate-spin' : ''}`}>{importing ? 'autorenew' : 'table_chart'}</span>
+          <label className={`flex items-center gap-1 px-3 py-1.5 rounded-xl cursor-pointer text-xs font-semibold transition-all ${importing ? 'bg-primary/20 text-primary/50' : 'bg-primary text-white active:scale-95'}`} title="Importar Excel">
+            <span className={`material-symbols-outlined text-sm ${importing ? 'animate-spin' : ''}`}>{importing ? 'autorenew' : 'table_chart'}</span>
+            {importing ? 'Importando…' : 'Importar'}
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} className="hidden" disabled={importing} />
           </label>
         )}
       </Header>
 
-      <div className="pb-28 px-4 pt-3 space-y-3">
+      <div className="pb-28 px-4 pt-3 space-y-3 isolate">
 
         {/* Admin user selector */}
         {isAdmin && allUsers.length > 0 && (
@@ -306,7 +307,7 @@ export default function Anthropometry() {
                     <select
                       value={selectedPerim}
                       onChange={e => handlePerimSelect(e.target.value)}
-                      className="w-full bg-transparent text-text text-[11px] font-semibold focus:outline-none cursor-pointer mb-1"
+                      className="w-full bg-transparent text-text text-[9px] font-bold uppercase tracking-wider focus:outline-none cursor-pointer mb-1 text-text-secondary"
                     >
                       {perimsWithData.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
                     </select>
@@ -326,7 +327,7 @@ export default function Anthropometry() {
             </div>
 
             {/* ── Chart tabs ── */}
-            <div className="flex gap-1 overflow-x-auto scrollbar-none">
+            <div className="relative z-10 flex gap-1 overflow-x-auto scrollbar-none">
               {CHART_TABS.map(t => {
                 const has = sorted.some(m => t.field(m) != null)
                 return (
@@ -343,12 +344,12 @@ export default function Anthropometry() {
                 <select
                   value={isPerimMode ? chartMode : ''}
                   onChange={e => { if (e.target.value) { setChartMode(e.target.value); setSelectedPerim(e.target.value) } }}
-                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer focus:outline-none transition-all appearance-none ${
+                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer focus:outline-none transition-all appearance-none max-w-[80px] truncate ${
                     isPerimMode ? 'bg-primary text-white' : 'bg-surface text-text-secondary'
                   }`}
-                  style={{ paddingRight: '1.4rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='${isPerimMode ? 'white' : '%239ca3af'}'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.3rem center', backgroundSize: '0.8rem' }}
+                  style={{ paddingRight: '1.2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='${isPerimMode ? 'white' : '%239ca3af'}'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.2rem center', backgroundSize: '0.7rem' }}
                 >
-                  {!isPerimMode && <option value="">Perímetro…</option>}
+                  {!isPerimMode && <option value="">Perím.</option>}
                   {perimsWithData.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
                 </select>
               )}
@@ -357,7 +358,7 @@ export default function Anthropometry() {
             {/* ── Main chart ── */}
             {activeCfg && (
               chartData.length >= 2 ? (
-                <Card className="p-3! pt-3! rounded-xl!">
+                <Card className="p-3! pt-3! rounded-xl! overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider">{activeCfg.label}</p>

@@ -83,7 +83,7 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
       <div className="bg-card w-full max-w-lg rounded-t-3xl flex flex-col max-h-[92vh] animate-slide-up">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold text-text truncate">{detail.name}</h2>
             {detail.equipments?.length > 0 && (
@@ -98,19 +98,19 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex px-5 gap-1 shrink-0 pb-3 border-b border-border">
+        <div className="flex px-4 gap-1 shrink-0 pb-2 border-b border-border">
           {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => handleTabChange(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              title={t.label}
+              className={`flex items-center justify-center w-9 h-8 rounded-lg transition-colors ${
                 activeTab === t.id
                   ? 'bg-primary/15 text-primary'
                   : 'text-text-secondary hover:bg-track'
               }`}
             >
-              <span className="material-symbols-outlined text-sm">{t.icon}</span>
-              {t.label}
+              <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
             </button>
           ))}
         </div>
@@ -215,13 +215,13 @@ export default function ExerciseDetail({ exercise, onClose, onAdd }) {
                           Traduciendo al español…
                         </div>
                       )}
-                      <ol className="space-y-3">
+                      <ol className="space-y-2">
                         {(translatedSteps || detail.instructions).map((step, i) => (
-                          <li key={i} className="flex gap-3 text-sm text-text">
-                            <span className="shrink-0 w-7 h-7 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center">
+                          <li key={i} className="flex gap-2 text-xs text-text">
+                            <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center mt-0.5">
                               {i + 1}
                             </span>
-                            <span className="flex-1 leading-relaxed pt-0.5">{step}</span>
+                            <span className="flex-1 leading-relaxed">{step}</span>
                           </li>
                         ))}
                       </ol>

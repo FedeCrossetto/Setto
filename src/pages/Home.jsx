@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import ThemeToggle from '../components/ThemeToggle'
 import { useAuth } from '../contexts/AuthContext'
 import Card from '../components/ui/Card'
 import ProgressBar from '../components/ui/ProgressBar'
@@ -45,8 +44,8 @@ export default function Home() {
       ])
 
       const todayMeals = allMeals.filter(m => m.date === today && m.completed)
-      const calories = todayMeals.reduce((sum, m) => sum + (m.calories || 0), 0)
-      const protein = todayMeals.reduce((sum, m) => sum + (m.protein || 0), 0)
+      const calories = todayMeals.reduce((sum, m) => sum + (m.calorias || 0), 0)
+      const protein = todayMeals.reduce((sum, m) => sum + (m.proteinas || 0), 0)
 
       const thisWeekSessions = allSessions.filter(s => {
         const diff = (new Date(today) - new Date(s.date)) / 86400000
@@ -73,21 +72,19 @@ export default function Home() {
         greetingLabel="Bienvenido"
         greetingName={`Hola, ${user?.nombre || user?.username || ''}`}
         avatar={user?.avatar || null}
-      >
-        <ThemeToggle />
-      </Header>
+      />
 
-      <div className="px-5 pt-5 space-y-5 pb-6">
+      <div className="px-5 pt-5 space-y-3.5 pb-6">
         {/* Daily Calories - card principal oscura */}
         <div className="rounded-2xl bg-gray-900 p-4 shadow-lg">
           <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-primary text-lg">local_fire_department</span>
+            <span className="material-symbols-outlined text-orange-400 text-lg">local_fire_department</span>
             <span className="font-semibold text-sm text-white">Calorías de hoy</span>
           </div>
-          <ProgressBar value={stats.calories} max={2200} label="" showValue />
+          <ProgressBar value={stats.calories} max={user?.metaCalorias || 2200} label="" showValue />
           <div className="flex justify-between mt-2 text-xs text-white/50">
             <span>{stats.calories} kcal consumidas</span>
-            <span>Meta: 2200 kcal</span>
+            <span>Meta: {user?.metaCalorias || 2200} kcal</span>
           </div>
         </div>
 
@@ -101,7 +98,7 @@ export default function Home() {
             value={stats.weight ? stats.weight.toFixed(1) : '—'}
             unit={stats.weight ? 'kg' : ''}
           />
-          <StatCard icon="local_fire_department" label="Calorías hoy" value={stats.calories} unit="kcal" />
+          <StatCard icon="local_fire_department" label="Calorías hoy" value={stats.calories} unit="kcal" color="text-orange-400" />
         </div>
 
         {/* Weekly / Monthly training mini-chart */}

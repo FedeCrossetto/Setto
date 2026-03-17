@@ -86,21 +86,23 @@ export default function Progress() {
           {photos.length >= 2 && (
             <button
               onClick={() => { setCompareMode(!compareMode); setSelected([]) }}
-              className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors shadow-sm ${
-                compareMode ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                compareMode ? 'bg-primary text-white' : 'bg-card border border-border text-text-secondary'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">compare</span>
+              <span className="material-symbols-outlined text-sm">compare</span>
+              Comparar
             </button>
           )}
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white shadow-sm disabled:opacity-60"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-semibold disabled:opacity-60"
           >
-            <span className={`material-symbols-outlined text-lg ${uploading ? 'animate-spin' : ''}`}>
+            <span className={`material-symbols-outlined text-sm ${uploading ? 'animate-spin' : ''}`}>
               {uploading ? 'progress_activity' : 'add_a_photo'}
             </span>
+            Foto
           </button>
           <input
             ref={fileRef}

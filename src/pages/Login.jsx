@@ -68,8 +68,8 @@ export default function Login() {
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-6 py-12">
       {/* Logo + nombre */}
       <div className="flex flex-col items-center mb-10">
-        <div className="w-24 h-16 mb-4">
-          <SettoLogo className="w-full h-full" />
+        <div className="mb-4 p-4 rounded-2xl bg-card border border-border">
+          <SettoLogo className="w-20 h-14" />
         </div>
         <h1 className="text-3xl font-black text-text tracking-tight">Setto</h1>
         <p className="text-sm text-text-secondary mt-1">Tu compañero de entrenamiento</p>

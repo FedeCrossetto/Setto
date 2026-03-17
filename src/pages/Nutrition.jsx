@@ -213,13 +213,13 @@ export default function Nutrition() {
         <div className="flex items-center gap-2 pr-1">
           <button
             onClick={() => setShowTemplates(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 text-primary shadow-sm"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-border text-text-secondary"
           >
             <span className="material-symbols-outlined text-lg">menu_book</span>
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white shadow-sm"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-white"
           >
             <span className="material-symbols-outlined text-lg">add</span>
           </button>
@@ -240,20 +240,22 @@ export default function Nutrition() {
         </Card>
 
         {/* Macros */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Proteína', value: totals.protein, max: goals.protein, unit: 'g', color: 'bg-blue-500' },
-            { label: 'Carbos', value: totals.carbs, max: goals.carbs, unit: 'g', color: 'bg-amber-500' },
-            { label: 'Grasas', value: totals.fat, max: goals.fat, unit: 'g', color: 'bg-rose-500' },
-          ].map(macro => (
-            <Card key={macro.label} className="!p-3">
-              <p className="text-[10px] text-text-secondary font-semibold uppercase">{macro.label}</p>
-              <p className="text-lg font-bold mt-0.5">{macro.value}<span className="text-xs font-medium text-text-secondary">{macro.unit}</span></p>
-              <ProgressBar value={macro.value} max={macro.max} color={macro.color} showValue={false} className="mt-1.5" />
-              <p className="text-[10px] text-text-secondary mt-1">{macro.max}{macro.unit} meta</p>
-            </Card>
-          ))}
-        </div>
+        <Card className="!p-0 overflow-hidden">
+          <div className="grid grid-cols-4 divide-x divide-border">
+            {[
+              { label: 'Kcal',  value: totals.calories, max: goals.calories,  color: 'text-primary' },
+              { label: 'Prot',  value: totals.protein,  max: goals.protein,   color: 'text-blue-400' },
+              { label: 'Carbos',value: totals.carbs,    max: goals.carbs,     color: 'text-amber-400' },
+              { label: 'Grasas',value: totals.fat,      max: goals.fat,       color: 'text-rose-400' },
+            ].map(m => (
+              <div key={m.label} className="flex flex-col items-center py-3 px-1">
+                <span className={`text-xl font-black tabular-nums leading-tight ${m.color}`}>{m.value}</span>
+                <span className="text-[9px] font-semibold text-text-secondary uppercase tracking-wide mt-0.5">{m.label}</span>
+                <span className="text-[9px] text-text-secondary/50">/ {m.max}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         {/* Meals by Type */}
         {MEAL_TYPES.map(type => {
@@ -261,11 +263,8 @@ export default function Nutrition() {
           return (
             <div key={type.key}>
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-lg">{type.icon}</span>
-                  <h3 className="font-semibold text-sm">{type.label}</h3>
-                </div>
-                <button onClick={() => openAddForType(type.key)} className="text-primary text-xs font-semibold flex items-center gap-0.5">
+                <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">{type.label}</h3>
+                <button onClick={() => openAddForType(type.key)} className="text-primary text-[10px] font-semibold flex items-center gap-0.5">
                   <span className="material-symbols-outlined text-sm">add</span>
                   Agregar
                 </button>
@@ -282,19 +281,19 @@ export default function Nutrition() {
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => toggleMeal(meal)}
-                          className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                          className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
                             meal.completed ? 'bg-primary text-white' : 'bg-track text-text-secondary'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-base">check</span>
+                          <span className="material-symbols-outlined text-xs">check</span>
                         </button>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${meal.completed ? 'text-text' : 'text-text-secondary'}`}>{meal.name}</p>
-                          <div className="flex gap-3 text-[10px] text-text-secondary mt-0.5">
-                            <span>{meal.calorias} kcal</span>
-                            <span>P: {meal.proteinas}g</span>
-                            <span>C: {meal.carbohidratos}g</span>
-                            <span>G: {meal.grasas}g</span>
+                          <div className="flex gap-2.5 text-[10px] mt-0.5 tabular-nums">
+                            <span className="text-primary font-medium">{meal.calorias} kcal</span>
+                            <span className="text-blue-400">P {meal.proteinas}g</span>
+                            <span className="text-amber-400">C {meal.carbohidratos}g</span>
+                            <span className="text-rose-400">G {meal.grasas}g</span>
                           </div>
                         </div>
                         <button onClick={() => deleteMeal(meal.id)} className="p-1 text-gray-300 hover:text-red-500">
